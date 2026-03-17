@@ -22,7 +22,7 @@ import {
   UserCheck
 } from 'lucide-react';
 
-export const API_URL = "https://script.google.com/macros/s/AKfycbwRvcXUI1GVEo-Uc83Y_8eizho-LWPlsHXmcsA_tg2JAspUl9LBF5Sdak3MpiQduajt2g/exec";
+export const API_URL = "/api";
 
 export const callApi = async (action: string, payload: any) => {
   console.log(`[API Call] Action: ${action}`);
