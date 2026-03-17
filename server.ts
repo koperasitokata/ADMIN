@@ -92,7 +92,9 @@ async function startServer() {
   // API Routes
   app.post("/api", async (req, res) => {
     console.log(`[Server] Received request: ${req.body?.action}`);
-    const remoteUrl = process.env.VITE_API_URL;
+    
+    // Gunakan URL dari environment atau fallback ke URL yang sudah ada
+    const remoteUrl = process.env.VITE_API_URL || "https://script.google.com/macros/s/AKfycbwRvcXUI1GVEo-Uc83Y_8eizho-LWPlsHXmcsA_tg2JAspUl9LBF5Sdak3MpiQduajt2g/exec";
     
     // Jika ada URL remote, teruskan permintaan ke sana (Proxy Mode)
     if (remoteUrl && remoteUrl.startsWith('http')) {
