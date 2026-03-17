@@ -7,33 +7,29 @@ import cors from "cors";
 const DB_FILE = path.join(process.cwd(), "db.json");
 
 // Initialize DB if not exists
-try {
-  if (!fs.existsSync(DB_FILE)) {
-    const initialData = {
-      petugas: [
-        { id_petugas: "ADM01", nama: "Admin Tokata", no_hp: "08123456789", password: "admin", jabatan: "Admin", foto: "" }
-      ],
-      nasabah: [
-        { id_nasabah: "NSB001", nik: "1234567890123456", nama: "Budi Santoso", no_hp: "08111111111", pin: "1234", foto: "", latitude: -6.2, longitude: 106.8, update_lokasi: new Date().toISOString(), tanggal_daftar: new Date().toISOString() },
-        { id_nasabah: "NSB002", nik: "1234567890123457", nama: "Angga", no_hp: "08222222222", pin: "1234", foto: "", latitude: -6.21, longitude: 106.81, update_lokasi: new Date().toISOString(), tanggal_daftar: new Date().toISOString() }
-      ],
-      modal_awal: [],
-      pengeluaran: [],
-      pinjaman_aktif: [
-        { id_pinjaman: "CTR001", tanggal_acc: new Date().toISOString(), id_nasabah: "NSB002", nama: "Angga", pokok: 500000, bunga_persen: 20, total_hutang: 600000, tenor: 10, cicilan: 60000, sisa_hutang: 0, status: "Lunas", kolektor: "ADM01", tanggal_cair: new Date().toISOString(), bukti_cair: "" },
-        { id_pinjaman: "CTR002", tanggal_acc: new Date().toISOString(), id_nasabah: "NSB002", nama: "Angga", pokok: 1000000, bunga_persen: 20, total_hutang: 1200000, tenor: 10, cicilan: 120000, sisa_hutang: 1200000, status: "Aktif", kolektor: "ADM01", tanggal_cair: new Date().toISOString(), bukti_cair: "" }
-      ],
-      pengajuan_pinjaman: [
-        { id_pengajuan: "REQ001", tanggal: new Date().toISOString(), id_nasabah: "NSB001", nama: "Budi Santoso", jumlah: 1000000, tenor: 10, petugas: "Kolektor 1", status: "Pending" }
-      ],
-      simpanan: [],
-      angsuran: [],
-      pemasukan: []
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
-  }
-} catch (e) {
-  console.warn("Warning: Could not write to db.json. This is expected on Vercel if not using Proxy Mode.");
+if (!fs.existsSync(DB_FILE)) {
+  const initialData = {
+    petugas: [
+      { id_petugas: "ADM01", nama: "Admin Tokata", no_hp: "08123456789", password: "admin", jabatan: "Admin", foto: "" }
+    ],
+    nasabah: [
+      { id_nasabah: "NSB001", nik: "1234567890123456", nama: "Budi Santoso", no_hp: "08111111111", pin: "1234", foto: "", latitude: -6.2, longitude: 106.8, update_lokasi: new Date().toISOString(), tanggal_daftar: new Date().toISOString() },
+      { id_nasabah: "NSB002", nik: "1234567890123457", nama: "Angga", no_hp: "08222222222", pin: "1234", foto: "", latitude: -6.21, longitude: 106.81, update_lokasi: new Date().toISOString(), tanggal_daftar: new Date().toISOString() }
+    ],
+    modal_awal: [],
+    pengeluaran: [],
+    pinjaman_aktif: [
+      { id_pinjaman: "CTR001", tanggal_acc: new Date().toISOString(), id_nasabah: "NSB002", nama: "Angga", pokok: 500000, bunga_persen: 20, total_hutang: 600000, tenor: 10, cicilan: 60000, sisa_hutang: 0, status: "Lunas", kolektor: "ADM01", tanggal_cair: new Date().toISOString(), bukti_cair: "" },
+      { id_pinjaman: "CTR002", tanggal_acc: new Date().toISOString(), id_nasabah: "NSB002", nama: "Angga", pokok: 1000000, bunga_persen: 20, total_hutang: 1200000, tenor: 10, cicilan: 120000, sisa_hutang: 1200000, status: "Aktif", kolektor: "ADM01", tanggal_cair: new Date().toISOString(), bukti_cair: "" }
+    ],
+    pengajuan_pinjaman: [
+      { id_pengajuan: "REQ001", tanggal: new Date().toISOString(), id_nasabah: "NSB001", nama: "Budi Santoso", jumlah: 1000000, tenor: 10, petugas: "Kolektor 1", status: "Pending" }
+    ],
+    simpanan: [],
+    angsuran: [],
+    pemasukan: []
+  };
+  fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
 }
 
 function getDB() {
@@ -76,9 +72,8 @@ function saveDB(data: any) {
   }
 }
 
-const app = express();
-
 async function startServer() {
+  const app = express();
   const PORT = 3000;
 
   app.use(cors());
@@ -92,9 +87,7 @@ async function startServer() {
   // API Routes
   app.post("/api", async (req, res) => {
     console.log(`[Server] Received request: ${req.body?.action}`);
-    
-    // Gunakan URL dari environment atau fallback ke URL yang sudah ada
-    const remoteUrl = process.env.VITE_API_URL || "https://script.google.com/macros/s/AKfycbwRvcXUI1GVEo-Uc83Y_8eizho-LWPlsHXmcsA_tg2JAspUl9LBF5Sdak3MpiQduajt2g/exec";
+    const remoteUrl = process.env.VITE_API_URL;
     
     // Jika ada URL remote, teruskan permintaan ke sana (Proxy Mode)
     if (remoteUrl && remoteUrl.startsWith('http')) {
@@ -456,13 +449,9 @@ async function startServer() {
     });
   }
 
-  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  }
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
 }
 
 startServer();
-
-export default app;
