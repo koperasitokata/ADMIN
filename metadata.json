@@ -1,0 +1,8 @@
+{
+  "name": "Tokata Admin Dashboard",
+  "description": "A dedicated administrative dashboard for cooperative management. Focuses on loan approvals, financial reporting, and member oversight.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

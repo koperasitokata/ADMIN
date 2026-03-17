@@ -1,0 +1,124 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TOKATA DIGITAL KOPERASI</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" crossorigin="anonymous">
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(circle at top right, #1e1b4b, #0f172a 60%), 
+                           radial-gradient(circle at bottom left, #4c1d95, #0f172a 60%);
+            --cosmic-gradient: linear-gradient(135deg, #6366f1 0%, #d946ef 50%, #8b5cf6 100%);
+            --text-cosmic-gradient: linear-gradient(135deg, #6366f1 0%, #d946ef 100%);
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-heavy-bg: rgba(15, 23, 42, 0.6);
+            --neon-cyan: rgba(34, 211, 238, 0.3);
+            --neon-magenta: rgba(232, 121, 249, 0.3);
+        }
+
+        [data-theme="emerald"] {
+            --bg-gradient: radial-gradient(circle at top right, #064e3b, #020617 60%), 
+                           radial-gradient(circle at bottom left, #115e59, #020617 60%);
+            --cosmic-gradient: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #3b82f6 100%);
+            --text-cosmic-gradient: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+            --glass-bg: rgba(255, 255, 255, 0.02);
+            --glass-heavy-bg: rgba(2, 6, 23, 0.7);
+            --neon-cyan: rgba(16, 185, 129, 0.3);
+            --neon-magenta: rgba(59, 130, 246, 0.3);
+        }
+
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+        .safe-area-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .bg-cosmic-gradient {
+            background: var(--cosmic-gradient);
+        }
+        .text-cosmic-gradient {
+            background: var(--text-cosmic-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glass-cosmic {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .glass-cosmic-heavy {
+            background: var(--glass-heavy-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .neon-border-cyan { border: 1px solid var(--neon-cyan); box-shadow: 0 0 15px rgba(34, 211, 238, 0.1); }
+        .neon-border-magenta { border: 1px solid var(--neon-magenta); box-shadow: 0 0 15px rgba(232, 121, 249, 0.1); }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .leaflet-popup-content-wrapper {
+            background: rgba(15, 23, 42, 0.9) !important;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white !important;
+            border-radius: 1rem !important;
+        }
+        .leaflet-popup-tip {
+            background: rgba(15, 23, 42, 0.9) !important;
+        }
+        .map-tiles-dark {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+        .map-container-solid {
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+    <script>
+        (function() {
+            const theme = localStorage.getItem('koperasi_theme') || 'cosmic';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+</head>
+<body class="bg-[#0f172a] text-slate-50 select-none">
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+</body>
+</html>
