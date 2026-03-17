@@ -7,29 +7,33 @@ import cors from "cors";
 const DB_FILE = path.join(process.cwd(), "db.json");
 
 // Initialize DB if not exists
-if (!fs.existsSync(DB_FILE)) {
-  const initialData = {
-    petugas: [
-      { id_petugas: "ADM01", nama: "Admin Tokata", no_hp: "08123456789", password: "admin", jabatan: "Admin", foto: "" }
-    ],
-    nasabah: [
-      { id_nasabah: "NSB001", nik: "1234567890123456", nama: "Budi Santoso", no_hp: "08111111111", pin: "1234", foto: "", latitude: -6.2, longitude: 106.8, update_lokasi: new Date().toISOString(), tanggal_daftar: new Date().toISOString() },
-      { id_nasabah: "NSB002", nik: "1234567890123457", nama: "Angga", no_hp: "08222222222", pin: "1234", foto: "", latitude: -6.21, longitude: 106.81, update_lokasi: new Date().toISOString(), tanggal_daftar: new Date().toISOString() }
-    ],
-    modal_awal: [],
-    pengeluaran: [],
-    pinjaman_aktif: [
-      { id_pinjaman: "CTR001", tanggal_acc: new Date().toISOString(), id_nasabah: "NSB002", nama: "Angga", pokok: 500000, bunga_persen: 20, total_hutang: 600000, tenor: 10, cicilan: 60000, sisa_hutang: 0, status: "Lunas", kolektor: "ADM01", tanggal_cair: new Date().toISOString(), bukti_cair: "" },
-      { id_pinjaman: "CTR002", tanggal_acc: new Date().toISOString(), id_nasabah: "NSB002", nama: "Angga", pokok: 1000000, bunga_persen: 20, total_hutang: 1200000, tenor: 10, cicilan: 120000, sisa_hutang: 1200000, status: "Aktif", kolektor: "ADM01", tanggal_cair: new Date().toISOString(), bukti_cair: "" }
-    ],
-    pengajuan_pinjaman: [
-      { id_pengajuan: "REQ001", tanggal: new Date().toISOString(), id_nasabah: "NSB001", nama: "Budi Santoso", jumlah: 1000000, tenor: 10, petugas: "Kolektor 1", status: "Pending" }
-    ],
-    simpanan: [],
-    angsuran: [],
-    pemasukan: []
-  };
-  fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
+try {
+  if (!fs.existsSync(DB_FILE)) {
+    const initialData = {
+      petugas: [
+        { id_petugas: "ADM01", nama: "Admin Tokata", no_hp: "08123456789", password: "admin", jabatan: "Admin", foto: "" }
+      ],
+      nasabah: [
+        { id_nasabah: "NSB001", nik: "1234567890123456", nama: "Budi Santoso", no_hp: "08111111111", pin: "1234", foto: "", latitude: -6.2, longitude: 106.8, update_lokasi: new Date().toISOString(), tanggal_daftar: new Date().toISOString() },
+        { id_nasabah: "NSB002", nik: "1234567890123457", nama: "Angga", no_hp: "08222222222", pin: "1234", foto: "", latitude: -6.21, longitude: 106.81, update_lokasi: new Date().toISOString(), tanggal_daftar: new Date().toISOString() }
+      ],
+      modal_awal: [],
+      pengeluaran: [],
+      pinjaman_aktif: [
+        { id_pinjaman: "CTR001", tanggal_acc: new Date().toISOString(), id_nasabah: "NSB002", nama: "Angga", pokok: 500000, bunga_persen: 20, total_hutang: 600000, tenor: 10, cicilan: 60000, sisa_hutang: 0, status: "Lunas", kolektor: "ADM01", tanggal_cair: new Date().toISOString(), bukti_cair: "" },
+        { id_pinjaman: "CTR002", tanggal_acc: new Date().toISOString(), id_nasabah: "NSB002", nama: "Angga", pokok: 1000000, bunga_persen: 20, total_hutang: 1200000, tenor: 10, cicilan: 120000, sisa_hutang: 1200000, status: "Aktif", kolektor: "ADM01", tanggal_cair: new Date().toISOString(), bukti_cair: "" }
+      ],
+      pengajuan_pinjaman: [
+        { id_pengajuan: "REQ001", tanggal: new Date().toISOString(), id_nasabah: "NSB001", nama: "Budi Santoso", jumlah: 1000000, tenor: 10, petugas: "Kolektor 1", status: "Pending" }
+      ],
+      simpanan: [],
+      angsuran: [],
+      pemasukan: []
+    };
+    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
+  }
+} catch (e) {
+  console.warn("Warning: Could not write to db.json. This is expected on Vercel if not using Proxy Mode.");
 }
 
 function getDB() {
