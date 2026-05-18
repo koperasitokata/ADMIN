@@ -27,7 +27,7 @@ const getInitialDB = () => ({
 });
 
 // In-memory DB for Vercel (will reset on cold start)
-let memoryDB = getInitialDB();
+const memoryDB = getInitialDB();
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
