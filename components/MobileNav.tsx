@@ -41,7 +41,7 @@ const MobileNav: React.FC<MobileNavProps> = () => {
   );
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 glass-cosmic-heavy border-t border-white/5 px-4 py-2 flex justify-between items-stretch z-[9999] safe-area-bottom shadow-[0_-15px_40px_rgba(0,0,0,0.5)] rounded-t-[2.5rem]">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 glass-cosmic-heavy border-t border-white/5 px-4 py-2 flex justify-between items-stretch z-[9999] safe-area-bottom shadow-[0_-15px_40px_rgba(0,0,0,0.5)] rounded-t-[2.5rem]">
       <NavButton v="home" icon={ICONS.Home} label="Beranda" />
       <NavButton v="approvals" icon={ICONS.Pending} label="Persetujuan" />
       <NavButton v="members" icon={ICONS.Users} label="Nasabah" />
