@@ -1,5 +1,5 @@
 {
-  "name": "Tokata Admin Dashboard",
+  "name": "Tokata Admin official thema changer",
   "description": "A dedicated administrative dashboard for cooperative management. Focuses on loan approvals, financial reporting, and member oversight.",
   "requestFramePermissions": [
     "camera",

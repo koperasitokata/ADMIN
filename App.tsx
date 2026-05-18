@@ -5,18 +5,19 @@ import { UserRole, AuthState, Nasabah, Petugas } from './types';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import MobileNav from './components/MobileNav';
+import Sidebar from './components/Sidebar';
 
 const App: React.FC = () => {
   const [auth, setAuth] = useState<AuthState>(({ user: null, role: null }));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedAuth = localStorage.getItem('koperasi_auth');
+    const savedAuth = sessionStorage.getItem('koperasi_auth');
     if (savedAuth) {
       try {
         setAuth(JSON.parse(savedAuth));
       } catch (e) {
-        localStorage.removeItem('koperasi_auth');
+        sessionStorage.removeItem('koperasi_auth');
       }
     }
     setLoading(false);
@@ -25,12 +26,12 @@ const App: React.FC = () => {
   const handleLogin = (user: Nasabah | Petugas, role: UserRole) => {
     const newAuth = { user, role };
     setAuth(newAuth);
-    localStorage.setItem('koperasi_auth', JSON.stringify(newAuth));
+    sessionStorage.setItem('koperasi_auth', JSON.stringify(newAuth));
   };
 
   const handleLogout = useCallback(() => {
     setAuth({ user: null, role: null });
-    localStorage.removeItem('koperasi_auth');
+    sessionStorage.removeItem('koperasi_auth');
   }, []);
 
   if (loading) return (
@@ -47,16 +48,21 @@ const App: React.FC = () => {
 
   return (
     <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <div className="flex flex-col h-screen overflow-hidden relative">
-        <main className="flex-1 overflow-y-auto pb-32">
-          <Routes>
-            {auth.role === UserRole.ADMIN && (
-              <Route path="/" element={<AdminDashboard user={auth.user as Petugas} onLogout={handleLogout} />} />
-            )}
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </main>
-        <MobileNav />
+      <div className="flex h-screen bg-[#020617] overflow-hidden">
+        {/* Desktop Sidebar */}
+        {auth.role === UserRole.ADMIN && <Sidebar user={auth.user as Petugas} onLogout={handleLogout} />}
+        
+        <div className="flex-1 flex flex-col min-w-0 relative h-full">
+          <main className="flex-1 overflow-y-auto pb-32 md:pb-8 md:pt-4 transition-all duration-300 md:ml-64">
+            <Routes>
+              {auth.role === UserRole.ADMIN && (
+                <Route path="/" element={<AdminDashboard user={auth.user as Petugas} onLogout={handleLogout} />} />
+              )}
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </main>
+          <MobileNav />
+        </div>
       </div>
     </HashRouter>
   );
