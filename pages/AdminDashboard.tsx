@@ -100,6 +100,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   const [viewingYear, setViewingYear] = useState(new Date().getFullYear());
   const [validationList, setValidationList] = useState<any[]>([]);
   const [chartOffset, setChartOffset] = useState(0);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+  useEffect(() => {
+    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const uniqueCollectorValidations = useMemo(() => {
     const map = new Map();
@@ -786,11 +793,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         const newPhoto = currentPetugas?.foto || null;
         if (newPhoto !== adminPhoto) {
           setAdminPhoto(newPhoto);
-          const savedAuth = localStorage.getItem('koperasi_auth');
+          const savedAuth = sessionStorage.getItem('koperasi_auth');
           if (savedAuth) {
             const auth = JSON.parse(savedAuth);
             auth.user.foto = newPhoto;
-            localStorage.setItem('koperasi_auth', JSON.stringify(auth));
+            sessionStorage.setItem('koperasi_auth', JSON.stringify(auth));
           }
         }
 
@@ -1190,12 +1197,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       
       if (res.success) {
         setAdminPhoto(compressedBase64);
-        // Update localStorage agar foto tetap ada setelah refresh
-        const savedAuth = localStorage.getItem('koperasi_auth');
+        // Update sessionStorage agar foto tetap ada setelah refresh
+        const savedAuth = sessionStorage.getItem('koperasi_auth');
         if (savedAuth) {
           const auth = JSON.parse(savedAuth);
           auth.user.foto = compressedBase64;
-          localStorage.setItem('koperasi_auth', JSON.stringify(auth));
+          sessionStorage.setItem('koperasi_auth', JSON.stringify(auth));
         }
         alert('Foto profil berhasil diperbarui!');
       } else {
@@ -1261,7 +1268,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
   const dailyFlowData = useMemo(() => {
     const days = [];
-    for (let i = 6; i >= 0; i--) {
+    const range = isDesktop ? 29 : 6;
+    for (let i = range; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i - chartOffset);
       d.setHours(0, 0, 0, 0);
@@ -1312,7 +1320,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         target: isWeekend ? 0 : scheduledTarget
       };
     });
-  }, [mutasiList, allLoans, chartOffset]);
+  }, [mutasiList, allLoans, chartOffset, isDesktop]);
 
   if (loading && stats.totalModal === 0 && !fetchError) return (
     <div className="h-screen flex flex-col items-center justify-center p-20">
@@ -1360,8 +1368,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       </header>
 
       {activeTab === 'home' ? (
-        <>
-          <div className="space-y-4">
+        <div className="lg:grid lg:grid-cols-12 lg:gap-6 items-start">
+          {/* Header Stats and Chart (Full Width) */}
+          <div className="lg:col-span-12 space-y-4">
             <div className="flex items-center justify-between px-1">
               <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">Statistik Utama</p>
               <div className="flex items-center gap-1.5">
@@ -1370,120 +1379,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
               </div>
             </div>
 
-            {/* Total Modal Tersalur Card */}
-            <div 
-              className="bg-tokata-gradient p-4 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
-              onClick={() => setShowExplanation(true)}
-            >
-              {/* Background Image Layer */}
-              <div 
-                className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-500"
-                style={{ 
-                  backgroundImage: `url(${CARD_CONFIG.totalModalBackground})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  opacity: CARD_CONFIG.totalModalOpacity
-                }}
-              />
-              <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8 blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 bg-white/20 rounded-lg text-white">
-                    <Database size={16} />
-                  </div>
-                  <p className="text-[9px] font-black text-white uppercase tracking-[0.2em]">Total Modal Tersalur</p>
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <p className="text-2xl font-black text-white tracking-tighter">
-                      Rp {stats.totalModalTersalur.toLocaleString('id-ID')}
-                    </p>
-                    <p className="text-xs font-bold text-white/60 tracking-tight">
-                      / $ {(stats.totalModalTersalur / 16000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <p className="text-[7px] font-black text-white/40 mt-1 uppercase tracking-[0.1em]">
-                    Klik untuk lihat rincian perhitungan
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              {[
-                { label: 'Total Modal', val: stats.totalModal, color: 'cyan', icon: ICONS.Wallet },
-                { label: 'Saldo Kas', val: saldoKas, color: 'amber', icon: <Banknote size={14} />, onClick: () => setShowSaldoExplanation(true) },
-                { label: 'Out Pinjaman', val: stats.totalPinjaman, color: 'magenta', icon: ICONS.Doc },
-              ].map((s, i) => (
-                <div 
-                  key={i} 
-                  onClick={s.onClick}
-                  className={`bg-${s.color}-500/10 p-3 rounded-xl border border-${s.color}-500/20 flex flex-col justify-between min-h-[60px] ${s.onClick ? 'cursor-pointer active:scale-95 transition-all' : ''}`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <p className={`text-[7px] font-black text-${s.color}-400 uppercase tracking-widest`}>{s.label}</p>
-                    <div className={`text-${s.color}-400 opacity-50`}>{s.icon}</div>
-                  </div>
-                  <div>
-                    <p className={`text-[10px] font-black text-${s.color}-300`}>
-                      Rp {s.val.toLocaleString('id-ID')}
-                    </p>
-                    {s.label === 'Saldo Kas' && (
-                      <p className="text-[5px] font-bold text-amber-500/50 uppercase tracking-tighter mt-0.5">Klik rincian</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'Operasional', val: stats.totalPengeluaran, color: 'rose', icon: ICONS.Expense },
-                { label: 'Pendapatan', val: stats.totalPemasukan, color: 'emerald', icon: <ArrowUpRight size={14} /> },
-              ].map((s, i) => (
-                <div key={i} className={`bg-${s.color}-500/10 p-3 rounded-xl border border-${s.color}-500/20 flex flex-col justify-between min-h-[60px]`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className={`text-[7px] font-black text-${s.color}-400 uppercase tracking-widest`}>{s.label}</p>
-                    <div className={`text-${s.color}-400 opacity-50`}>{s.icon}</div>
-                  </div>
-                  <p className={`text-[10px] font-black text-${s.color}-300`}>
-                    Rp {s.val.toLocaleString('id-ID')}
-                  </p>
-                </div>
-              ))}
-              
-              {/* Target Hari Ini Card */}
-              <div className="bg-violet-500/10 p-3 rounded-xl border border-violet-500/20 flex flex-col justify-between min-h-[60px] relative overflow-hidden">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-[7px] font-black text-violet-400 uppercase tracking-widest">Target Hari Ini</p>
-                  <div className="text-violet-400 opacity-50"><ShieldCheck size={14} /></div>
-                </div>
-                <div>
-                  <div className="flex flex-col">
-                    <p className="text-[10px] font-black text-violet-300 leading-tight">
-                      Rp {targetData.real.toLocaleString('id-ID')}
-                    </p>
-                    <p className="text-[6px] font-bold text-violet-500/60 uppercase tracking-tighter">
-                      Target: Rp {targetData.target.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                  <div className="mt-1.5 w-full bg-white/5 h-1 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-violet-500 transition-all duration-1000" 
-                      style={{ width: `${targetData.percent}%` }}
-                    />
-                  </div>
-                  <p className="text-[6px] font-bold text-violet-500/70 mt-0.5 text-right">
-                    {targetData.percent.toFixed(1)}%
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            <div className="space-y-4">
-              <div className="glass-cosmic p-4 rounded-2xl shadow-xl">
+            {/* Arus Kas Utama Chart (Full Width at Top) */}
+            <div className="glass-cosmic p-4 rounded-2xl shadow-xl flex flex-col">
                 <h3 className="text-sm font-black text-white mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="p-1.5 bg-white/5 rounded-lg text-cyan-400">{ICONS.Chart}</div> Arus Kas Utama (Flow Matrix)
@@ -1491,9 +1388,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   <div className="flex items-center gap-3">
                     <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10">
                       <button 
-                        onClick={() => setChartOffset(prev => prev + 7)}
+                        onClick={() => setChartOffset(prev => prev + (isDesktop ? 30 : 7))}
                         className="p-1 hover:bg-white/10 rounded-md text-slate-400 transition-colors"
-                        title="7 Hari Sebelumnya"
+                        title={isDesktop ? "30 Hari Sebelumnya" : "7 Hari Sebelumnya"}
                       >
                         <ChevronRight className="rotate-180" size={14} />
                       </button>
@@ -1504,10 +1401,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                         Hari Ini
                       </button>
                       <button 
-                        onClick={() => setChartOffset(prev => Math.max(0, prev - 7))}
+                        onClick={() => setChartOffset(prev => Math.max(0, prev - (isDesktop ? 30 : 7)))}
                         disabled={chartOffset === 0}
                         className={`p-1 rounded-md transition-colors ${chartOffset === 0 ? 'text-slate-700 cursor-not-allowed' : 'hover:bg-white/10 text-slate-400'}`}
-                        title="7 Hari Berikutnya"
+                        title={isDesktop ? "30 Hari Berikutnya" : "7 Hari Berikutnya"}
                       >
                         <ChevronRight size={14} />
                       </button>
@@ -1524,7 +1421,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   </div>
                 </div>
               </h3>
-                <div className="h-[220px]">
+                <div className="h-[220px] lg:h-[400px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={dailyFlowData}>
                       <defs>
@@ -1551,6 +1448,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                         tickLine={false} 
                         tick={{fontSize: 7, fontWeight: 800, fill: '#64748b'}} 
                         dy={10}
+                        interval={isDesktop ? 2 : 0}
                       />
                       <YAxis 
                         axisLine={false} 
@@ -1617,94 +1515,205 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   </ResponsiveContainer>
                 </div>
               </div>
+          </div>
+
+          {/* Main Stats (Below Chart) */}
+          <div className="lg:col-span-12 xl:col-span-8 space-y-4">
+            {/* Total Modal Tersalur Card */}
+            <div 
+              className="bg-tokata-gradient p-6 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
+              onClick={() => setShowExplanation(true)}
+            >
+              <div 
+                className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-500"
+                style={{ 
+                  backgroundImage: `url(${CARD_CONFIG.totalModalBackground})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  opacity: CARD_CONFIG.totalModalOpacity
+                }}
+              />
+              <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8 blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-white/20 rounded-lg text-white">
+                    <Database size={16} />
+                  </div>
+                  <p className="text-[9px] font-black text-white uppercase tracking-[0.2em]">Total Modal Tersalur</p>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <p className="text-3xl font-black text-white tracking-tighter">
+                      Rp {stats.totalModalTersalur.toLocaleString('id-ID')}
+                    </p>
+                    <p className="text-sm font-bold text-white/60 tracking-tight">
+                      / $ {(stats.totalModalTersalur / 16000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <p className="text-[8px] font-black text-white/40 mt-1 uppercase tracking-[0.1em]">
+                    Klik untuk lihat rincian perhitungan
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                { label: 'Total Modal', val: stats.totalModal, color: 'cyan', icon: ICONS.Wallet },
+                { label: 'Saldo Kas', val: saldoKas, color: 'amber', icon: <Banknote size={14} />, onClick: () => setShowSaldoExplanation(true) },
+                { label: 'Out Pinjaman', val: stats.totalPinjaman, color: 'magenta', icon: ICONS.Doc },
+              ].map((s, i) => (
+                <div 
+                  key={i} 
+                  onClick={s.onClick}
+                  className={`bg-${s.color}-500/10 p-4 rounded-xl border border-${s.color}-500/20 flex flex-col justify-between min-h-[80px] ${s.onClick ? 'cursor-pointer active:scale-95 transition-all' : ''}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <p className={`text-[8px] font-black text-${s.color}-400 uppercase tracking-widest`}>{s.label}</p>
+                    <div className={`text-${s.color}-400 opacity-50`}>{s.icon}</div>
+                  </div>
+                  <div>
+                    <p className={`text-sm font-black text-${s.color}-300`}>
+                      Rp {s.val.toLocaleString('id-ID')}
+                    </p>
+                    {s.label === 'Saldo Kas' && (
+                      <p className="text-[6px] font-bold text-amber-500/50 uppercase tracking-tighter mt-0.5">Klik rincian</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                { label: 'Operasional', val: stats.totalPengeluaran, color: 'rose', icon: ICONS.Expense },
+                { label: 'Pendapatan', val: stats.totalPemasukan, color: 'emerald', icon: <ArrowUpRight size={14} /> },
+              ].map((s, i) => (
+                <div key={i} className={`bg-${s.color}-500/10 p-4 rounded-xl border border-${s.color}-500/20 flex flex-col justify-between min-h-[80px]`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className={`text-[8px] font-black text-${s.color}-400 uppercase tracking-widest`}>{s.label}</p>
+                    <div className={`text-${s.color}-400 opacity-50`}>{s.icon}</div>
+                  </div>
+                  <p className={`text-sm font-black text-${s.color}-300`}>
+                    Rp {s.val.toLocaleString('id-ID')}
+                  </p>
+                </div>
+              ))}
+              
+              {/* Target Hari Ini Card */}
+              <div className="bg-violet-500/10 p-4 rounded-xl border border-violet-500/20 flex flex-col justify-between min-h-[80px] relative overflow-hidden">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[8px] font-black text-violet-400 uppercase tracking-widest">Target Hari Ini</p>
+                  <div className="text-violet-400 opacity-50"><ShieldCheck size={14} /></div>
+                </div>
+                <div>
+                  <div className="flex flex-col">
+                    <p className="text-sm font-black text-violet-300 leading-tight">
+                      Rp {targetData.real.toLocaleString('id-ID')}
+                    </p>
+                    <p className="text-[8px] font-bold text-violet-500/60 uppercase tracking-tighter">
+                      Target: Rp {targetData.target.toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                  <div className="mt-1.5 w-full bg-white/5 h-1 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-violet-500 transition-all duration-1000" 
+                      style={{ width: `${targetData.percent}%` }}
+                    />
+                  </div>
+                  <p className="text-[7px] font-bold text-violet-500/70 mt-0.5 text-right">
+                    {targetData.percent.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3">
-            <button 
-              onClick={() => setShowExpenseModal(true)}
-              className="flex items-center justify-between p-4 bg-cosmic-gradient rounded-2xl shadow-lg active:scale-95 transition-all group relative overflow-hidden"
-            >
-              <div className="absolute right-0 top-0 w-16 h-16 bg-white/20 rounded-full -mr-4 -mt-4 blur-lg"></div>
-              <div className="flex items-center gap-3 relative z-10">
-                <div className="p-2 bg-white/20 rounded-xl text-white">
-                  <ArrowDownRight size={20}/>
+          {/* Action Buttons (Right or Bottom) */}
+          <div className="lg:col-span-12 xl:col-span-4 space-y-4 lg:mt-0 mt-4">
+            <div className="grid grid-cols-1 gap-3">
+              <button 
+                onClick={() => setShowExpenseModal(true)}
+                className="flex items-center justify-between p-4 bg-cosmic-gradient rounded-2xl shadow-lg active:scale-95 transition-all group relative overflow-hidden"
+              >
+                <div className="absolute right-0 top-0 w-16 h-16 bg-white/20 rounded-full -mr-4 -mt-4 blur-lg"></div>
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="p-2 bg-white/20 rounded-xl text-white">
+                    <ArrowDownRight size={20}/>
+                  </div>
+                  <div className="text-left text-white">
+                    <h3 className="font-black text-sm tracking-tight">Input Pengeluaran</h3>
+                    <p className="text-[8px] opacity-80 font-medium uppercase tracking-wider">Gaji, Perawatan, dll</p>
+                  </div>
                 </div>
-                <div className="text-left text-white">
-                  <h3 className="font-black text-sm tracking-tight">Input Pengeluaran</h3>
-                  <p className="text-[8px] opacity-80 font-medium uppercase tracking-wider">Gaji, Perawatan, dll</p>
+                <div className="text-white opacity-40 group-hover:opacity-100 transition-opacity">
+                  <PlusCircle size={20} />
                 </div>
-              </div>
-              <div className="text-white opacity-40 group-hover:opacity-100 transition-opacity">
-                <PlusCircle size={20} />
-              </div>
-            </button>
-          </div>
-          <div className="grid grid-cols-1 gap-3 mt-3">
-            <button 
-              onClick={() => {
-                setShowValidationView(true);
-                fetchValidationData();
-                fetchData(); // Refresh mutasiList to ensure tagihan calculation is accurate
-              }}
-              className="flex items-center justify-between p-4 bg-slate-800 rounded-2xl shadow-lg active:scale-95 transition-all group relative overflow-hidden border border-white/5"
-            >
-              <div className="absolute right-0 top-0 w-16 h-16 bg-cyan-500/10 rounded-full -mr-4 -mt-4 blur-lg"></div>
-              <div className="flex items-center gap-3 relative z-10">
-                <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400">
-                  <ClipboardCheck size={20}/>
-                </div>
-                <div className="text-left text-white">
-                  <h3 className="font-black text-sm tracking-tight">Validasi Setoran</h3>
-                  <p className="text-[8px] opacity-80 font-medium uppercase tracking-wider">Cek Selisih Kolektor</p>
-                </div>
-              </div>
-              <div className="text-white opacity-40 group-hover:opacity-100 transition-opacity">
-                <ChevronRight size={20} />
-              </div>
-            </button>
-          </div>
+              </button>
 
-          <div className="grid grid-cols-1 gap-3 mt-3">
-            <button 
-              onClick={() => setShowReportDateModal(true)}
-              className="flex items-center justify-between p-4 bg-slate-800 rounded-2xl shadow-lg active:scale-95 transition-all group relative overflow-hidden border border-white/5"
-            >
-              <div className="absolute right-0 top-0 w-16 h-16 bg-emerald-500/10 rounded-full -mr-4 -mt-4 blur-lg"></div>
-              <div className="flex items-center gap-3 relative z-10">
-                <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-400">
-                  <FileText size={20}/>
+              <button 
+                onClick={() => {
+                  setShowValidationView(true);
+                  fetchValidationData();
+                  fetchData(); 
+                }}
+                className="flex items-center justify-between p-4 bg-slate-800 rounded-2xl shadow-lg active:scale-95 transition-all group relative overflow-hidden border border-white/5"
+              >
+                <div className="absolute right-0 top-0 w-16 h-16 bg-cyan-500/10 rounded-full -mr-4 -mt-4 blur-lg"></div>
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400">
+                    <ClipboardCheck size={20}/>
+                  </div>
+                  <div className="text-left text-white">
+                    <h3 className="font-black text-sm tracking-tight">Validasi Setoran</h3>
+                    <p className="text-[8px] opacity-80 font-medium uppercase tracking-wider">Cek Selisih Kolektor</p>
+                  </div>
                 </div>
-                <div className="text-left text-white">
-                  <h3 className="font-black text-sm tracking-tight">Laporan Harian</h3>
-                  <p className="text-[8px] opacity-80 font-medium uppercase tracking-wider">Cetak Mutasi & Target Harian</p>
+                <div className="text-white opacity-40 group-hover:opacity-100 transition-opacity">
+                  <ChevronRight size={20} />
                 </div>
-              </div>
-              <div className="text-white opacity-40 group-hover:opacity-100 transition-opacity">
-                <ChevronRight size={20} />
-              </div>
-            </button>
+              </button>
 
-            <button 
-              onClick={() => setShowMonthlyReportModal(true)}
-              className="flex items-center justify-between p-4 bg-slate-800 rounded-2xl shadow-lg active:scale-95 transition-all group relative overflow-hidden border border-white/5"
-            >
-              <div className="absolute right-0 top-0 w-16 h-16 bg-cyan-500/10 rounded-full -mr-4 -mt-4 blur-lg"></div>
-              <div className="flex items-center gap-3 relative z-10">
-                <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400">
-                  <Calendar size={20}/>
-                </div>
-                <div className="text-left text-white">
-                  <h3 className="font-black text-sm tracking-tight">Laporan Bulanan</h3>
-                  <p className="text-[8px] opacity-80 font-medium uppercase tracking-wider">Analisis Laba/Rugi & Kas Bulanan</p>
-                </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setShowReportDateModal(true)}
+                  className="flex items-center justify-between p-4 bg-slate-800 rounded-2xl shadow-lg active:scale-95 transition-all group relative overflow-hidden border border-white/5"
+                >
+                  <div className="absolute right-0 top-0 w-16 h-16 bg-emerald-500/10 rounded-full -mr-4 -mt-4 blur-lg"></div>
+                  <div className="flex items-center gap-3 relative z-10">
+                    <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-400">
+                      <FileText size={20}/>
+                    </div>
+                    <div className="text-left text-white hidden md:block">
+                      <h3 className="font-black text-xs tracking-tight">Laporan Harian</h3>
+                    </div>
+                    <div className="text-left text-white md:hidden">
+                       <h3 className="font-black text-xs tracking-tight">Harian</h3>
+                    </div>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => setShowMonthlyReportModal(true)}
+                  className="flex items-center justify-between p-4 bg-slate-800 rounded-2xl shadow-lg active:scale-95 transition-all group relative overflow-hidden border border-white/5"
+                >
+                  <div className="absolute right-0 top-0 w-16 h-16 bg-cyan-500/10 rounded-full -mr-4 -mt-4 blur-lg"></div>
+                  <div className="flex items-center gap-3 relative z-10">
+                    <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-400">
+                      <Calendar size={20}/>
+                    </div>
+                    <div className="text-left text-white hidden md:block">
+                      <h3 className="font-black text-xs tracking-tight">Laporan Bulanan</h3>
+                    </div>
+                     <div className="text-left text-white md:hidden">
+                       <h3 className="font-black text-xs tracking-tight">Bulanan</h3>
+                    </div>
+                  </div>
+                </button>
               </div>
-              <div className="text-white opacity-40 group-hover:opacity-100 transition-opacity">
-                <ChevronRight size={20} />
-              </div>
-            </button>
+            </div>
           </div>
-        </>
+        </div>
       ) : activeTab === 'maps' ? (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <h3 className="text-base font-black text-white flex items-center gap-2 px-1">
@@ -1817,7 +1826,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
           <h3 className="text-base font-black text-white flex items-center gap-2 px-1">
             <div className="p-2 bg-yellow-500/10 text-yellow-500 rounded-xl">{ICONS.Pending}</div> Persetujuan Pinjaman
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {pengajuan.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-500 glass-cosmic rounded-2xl">
                 <div className="bg-white/5 p-6 rounded-full mb-4">{ICONS.Success}</div>
@@ -1962,7 +1971,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                 <Search className="absolute left-3.5 top-3.5 text-slate-500" size={16} />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 overflow-y-auto pr-1 custom-scrollbar max-h-[70vh]">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-2 overflow-y-auto pr-1 custom-scrollbar max-h-[70vh]">
                 {(() => {
                   const today = new Date();
                   today.setHours(0,0,0,0);

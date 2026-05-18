@@ -46,8 +46,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="bg-cosmic-gradient pt-16 pb-12 px-8 rounded-b-[3.5rem] shadow-2xl relative overflow-hidden">
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#020617]">
+      {/* Branding Section */}
+      <div className="md:flex-1 bg-cosmic-gradient pt-16 pb-12 md:py-0 px-8 rounded-b-[3.5rem] md:rounded-none shadow-2xl relative overflow-hidden flex items-center justify-center">
         {CARD_CONFIG.loginBackground && (
           <img 
             src={CARD_CONFIG.loginBackground} 
@@ -56,10 +57,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             referrerPolicy="no-referrer"
           />
         )}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-8 -mb-8 blur-2xl"></div>
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="mb-4 flex items-center justify-center overflow-hidden" style={{ width: CARD_CONFIG.loginLogoSize, height: CARD_CONFIG.loginLogoSize }}>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24 blur-3xl"></div>
+        <div className="relative z-10 flex flex-col items-center max-w-md text-center">
+          <div className="mb-6 flex items-center justify-center overflow-hidden" style={{ width: CARD_CONFIG.loginLogoSize, height: CARD_CONFIG.loginLogoSize }}>
             {CARD_CONFIG.loginLogo ? (
               <img 
                 src={CARD_CONFIG.loginLogo} 
@@ -68,19 +69,32 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <span className="text-3xl font-black tracking-tighter text-white">TK</span>
+              <div className="w-16 h-16 md:w-24 md:h-24 bg-white/10 rounded-3xl flex items-center justify-center border border-white/20">
+                <span className="text-4xl md:text-6xl font-black tracking-tighter text-white">TK</span>
+              </div>
             )}
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">{CARD_CONFIG.loginTitle || 'TOKATA DIGITAL'}</h1>
-          <p className="text-cyan-200 text-[10px] font-black uppercase tracking-[0.3em] opacity-80">{CARD_CONFIG.loginSubtitle || 'KOPERASI MODERN'}</p>
+          <h1 className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight">
+            {CARD_CONFIG.loginTitle || 'TOKATA DIGITAL'}
+          </h1>
+          <p className="mt-4 text-cyan-200 text-xs md:text-sm font-black uppercase tracking-[0.4em] opacity-80">
+            {CARD_CONFIG.loginSubtitle || 'SISTEM MANAJEMEN KOPERASI'}
+          </p>
+          <div className="hidden md:block mt-12 p-6 glass-cosmic border border-white/10 rounded-3xl backdrop-blur-xl">
+             <p className="text-white/60 text-sm font-medium leading-relaxed italic">
+               "Membangun ekonomi kerakyatan melalui digitalisasi keuangan yang berkelanjutan dan inklusif."
+             </p>
+          </div>
         </div>
       </div>
 
-      <div className="px-8 -mt-6 flex-1">
-        <div className="glass-cosmic rounded-[2.5rem] shadow-2xl p-6 border border-white/10">
-          <div className="mb-6 text-center">
-            <h2 className="text-lg font-black text-white uppercase tracking-widest">Login Admin</h2>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Silahkan masuk ke akun Anda</p>
+      {/* Login Form Section */}
+      <div className="flex-1 flex flex-col justify-center items-center px-8 -mt-6 md:mt-0 relative z-20">
+        <div className="w-full max-w-[420px] glass-cosmic rounded-[2.5rem] md:rounded-[3.5rem] shadow-2xl p-8 md:p-12 border border-white/10 bg-[#0f172a]/40 backdrop-blur-2xl">
+          <div className="mb-10 text-center">
+            <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-widest">Akses Admin</h2>
+            <div className="w-12 h-1 bg-cyan-500 mx-auto mt-3 rounded-full"></div>
+            <p className="text-[10px] md:text-xs text-slate-500 font-bold uppercase tracking-widest mt-4">Masukkan kredensial khusus petugas</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -126,12 +140,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               )}
             </button>
           </form>
+
+          <p className="mt-10 text-center text-[8px] font-bold text-slate-500 uppercase tracking-[0.3em]">
+            {CARD_CONFIG.copyrightText || '© 2026 TOKATA DIGITAL KOPERASI'}
+          </p>
         </div>
       </div>
-
-      <p className="py-8 text-center text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em]">
-        {CARD_CONFIG.copyrightText || '© 2026 TOKATA DIGITAL KOPERASI'}
-      </p>
     </div>
   );
 };
