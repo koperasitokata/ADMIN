@@ -6,8 +6,8 @@ export const TENOR_OPTIONS = [4, 12, 14, 16, 18, 20, 24];
  * Menghitung bunga berdasarkan nominal pinjaman sesuai aturan koperasi
  */
 export const calculateInterestRate = (amount: number): number => {
-  if (amount === 300000) return 21;
-  if (amount === 400000) return 21;
+  if (amount === 300000) return 33.33;
+  if (amount === 400000) return 25;
   return 20;
 };
 
