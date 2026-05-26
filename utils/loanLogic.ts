@@ -1,4 +1,6 @@
 
+import { isNationalHoliday } from './holidays';
+
 export const LOAN_AMOUNTS = [300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000, 1500000, 2000000, 2500000, 3000000];
 export const TENOR_OPTIONS = [4, 12, 14, 16, 18, 20, 24];
 
@@ -12,11 +14,11 @@ export const calculateInterestRate = (amount: number): number => {
 };
 
 /**
- * Memeriksa apakah sebuah tanggal adalah hari kerja (Senin-Jumat)
+ * Memeriksa apakah sebuah tanggal adalah hari kerja (Senin-Jumat dan bukan Hari Libur Nasional)
  */
 export const isWorkingDay = (date: Date): boolean => {
   const day = date.getDay();
-  return day !== 0 && day !== 6; // Bukan Minggu (0) dan bukan Sabtu (6)
+  return day !== 0 && day !== 6 && !isNationalHoliday(date); // Bukan Minggu (0), bukan Sabtu (6), dan bukan Hari Libur Nasional
 };
 
 /**
