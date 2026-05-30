@@ -100,13 +100,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   const [viewingYear, setViewingYear] = useState(new Date().getFullYear());
   const [validationList, setValidationList] = useState<any[]>([]);
   const [chartOffset, setChartOffset] = useState(0);
-  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
-
-  useEffect(() => {
-    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const uniqueCollectorValidations = useMemo(() => {
     const map = new Map();
@@ -342,10 +335,57 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       const totalIncome = dailyMutations.filter(m => ['Angsuran', 'Simpanan', 'Setoran Modal', 'Pemasukan'].includes(m.tipe)).reduce((acc: number, cur) => acc + cleanNum(cur.nominal || cur.jumlah || cur.jumlah_bayar), 0);
       const totalPhysicalDeposit = dailyValidations.reduce((acc: number, cur: any) => acc + cleanNum(cur.total_setoran_fisik), 0);
       const selisihKas = totalPhysicalDeposit - totalIncome;
+
+      // Hitung Saldo Kas Kumulatif (Sistem) sampai dengan tanggal laporan
+      const mutationsOnOrBefore = mutasiList.filter(m => {
+        const mDate = new Date(m.tanggal || m.tanggal_acc || m.tanggal_cair).toISOString().split('T')[0];
+        return mDate <= selectedDateStr;
+      });
+
+      const historicalIncome = mutationsOnOrBefore
+        .filter(m => m.tipe === 'Pemasukan')
+        .reduce((acc, m) => acc + m.nominal, 0);
+
+      const historicalAngsuran = mutationsOnOrBefore
+        .filter(m => m.tipe === 'Angsuran')
+        .reduce((acc, m) => acc + m.nominal, 0);
+
+      const historicalSimpananSetor = mutationsOnOrBefore
+        .filter(m => m.tipe === 'Simpanan')
+        .reduce((acc, m) => acc + m.nominal, 0);
+
+      const historicalSimpananTarik = mutationsOnOrBefore
+        .filter(m => m.tipe === 'Tarik Simpanan')
+        .reduce((acc, m) => acc + m.nominal, 0);
+
+      const historicalPengeluaran = mutationsOnOrBefore
+        .filter(m => (m.tipe === 'Pengeluaran' || m.jenis === 'Uang Transport') && !m.ket.toLowerCase().includes('cair simpanan'))
+        .reduce((acc, m) => acc + m.nominal, 0);
+
+      const historicalPinjamanCair = allLoans
+        .filter(loan => {
+          const loanDate = new Date(loan.tanggal_cair || loan.tanggal_acc).toISOString().split('T')[0];
+          return loanDate <= selectedDateStr;
+        })
+        .reduce((acc, loan) => acc + cleanNum(loan.pokok), 0);
+
+      // Saldo Kas Sistem pada akhir tanggal laporan
+      const systemCashAsOfDate = stats.totalModal + historicalIncome + (historicalSimpananSetor - historicalSimpananTarik) + historicalAngsuran - historicalPinjamanCair - historicalPengeluaran;
+
+      // Hitung Kumulatif Selisih Kas untuk menyesuaikan Kas Fisik
+      const validationsOnOrBefore = latestValidationList.filter((v: any) => {
+        const vDate = new Date(v.tanggal).toISOString().split('T')[0];
+        return vDate <= selectedDateStr;
+      });
+
+      const totalHistoricalSelisih = validationsOnOrBefore.reduce((acc: number, cur: any) => acc + cleanNum(cur.selisih), 0);
+
+      // Kas Fisik adalah Saldo Kas Sistem disesuaikan dengan total selisih kas fisik kolektor
+      const physicalCashAsOfDate = systemCashAsOfDate + totalHistoricalSelisih;
       
       doc.setDrawColor(200);
       doc.setLineWidth(0.1);
-      doc.rect(20, currentY - 5, 170, 45);
+      doc.rect(20, currentY - 5, 170, 52);
 
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
@@ -354,13 +394,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
-      doc.text(`Total Pemasukan (Sistem):`, 25, currentY + 15);
+      doc.text(`Total Pemasukan (Sistem) Hari Ini:`, 25, currentY + 15);
       doc.text(`Rp ${totalIncome.toLocaleString('id-ID')}`, 185, currentY + 15, { align: 'right' });
       
-      doc.text(`Total Setoran Fisik (Kolektor):`, 25, currentY + 22);
+      doc.text(`Total Setoran Fisik (Kolektor) Hari Ini:`, 25, currentY + 22);
       doc.text(`Rp ${totalPhysicalDeposit.toLocaleString('id-ID')}`, 185, currentY + 22, { align: 'right' });
       
-      doc.text(`Selisih Kas:`, 25, currentY + 29);
+      doc.text(`Selisih Kas Hari Ini:`, 25, currentY + 29);
       if (selisihKas < 0) {
         doc.setTextColor(220, 38, 38); // Red for negative
       } else if (selisihKas > 0) {
@@ -374,9 +414,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       doc.line(25, currentY + 32, 185, currentY + 32);
       
       doc.setFont("helvetica", "bold");
-      doc.text(`Saldo Akhir (Kas Fisik):`, 25, currentY + 38);
-      doc.text(`Rp ${totalPhysicalDeposit.toLocaleString('id-ID')}`, 185, currentY + 38, { align: 'right' });
+      doc.text(`Saldo Akhir Kas (Sistem):`, 25, currentY + 38);
+      doc.text(`Rp ${systemCashAsOfDate.toLocaleString('id-ID')}`, 185, currentY + 38, { align: 'right' });
 
+      doc.text(`Saldo Akhir Kas (Fisik):`, 25, currentY + 44);
+      doc.text(`Rp ${physicalCashAsOfDate.toLocaleString('id-ID')}`, 185, currentY + 44, { align: 'right' });
+ 
       doc.setTextColor(40, 40, 40); // Final reset
 
 
@@ -399,7 +442,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     } finally {
       setIsGeneratingReport(false);
     }
-  }, [reportDate, mutasiList, allLoans, validationList]);
+  }, [reportDate, mutasiList, allLoans, validationList, stats]);
 
   const generateMonthlyReportPDF = useCallback(async () => {
     setIsGeneratingReport(true);
@@ -793,11 +836,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         const newPhoto = currentPetugas?.foto || null;
         if (newPhoto !== adminPhoto) {
           setAdminPhoto(newPhoto);
-          const savedAuth = sessionStorage.getItem('koperasi_auth');
+          const savedAuth = localStorage.getItem('koperasi_auth');
           if (savedAuth) {
             const auth = JSON.parse(savedAuth);
             auth.user.foto = newPhoto;
-            sessionStorage.setItem('koperasi_auth', JSON.stringify(auth));
+            localStorage.setItem('koperasi_auth', JSON.stringify(auth));
           }
         }
 
@@ -1197,12 +1240,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       
       if (res.success) {
         setAdminPhoto(compressedBase64);
-        // Update sessionStorage agar foto tetap ada setelah refresh
-        const savedAuth = sessionStorage.getItem('koperasi_auth');
+        // Update localStorage agar foto tetap ada setelah refresh
+        const savedAuth = localStorage.getItem('koperasi_auth');
         if (savedAuth) {
           const auth = JSON.parse(savedAuth);
           auth.user.foto = compressedBase64;
-          sessionStorage.setItem('koperasi_auth', JSON.stringify(auth));
+          localStorage.setItem('koperasi_auth', JSON.stringify(auth));
         }
         alert('Foto profil berhasil diperbarui!');
       } else {
@@ -1268,8 +1311,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
   const dailyFlowData = useMemo(() => {
     const days = [];
-    const range = isDesktop ? 29 : 6;
-    for (let i = range; i >= 0; i--) {
+    for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i - chartOffset);
       d.setHours(0, 0, 0, 0);
@@ -1320,7 +1362,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         target: isWeekend ? 0 : scheduledTarget
       };
     });
-  }, [mutasiList, allLoans, chartOffset, isDesktop]);
+  }, [mutasiList, allLoans, chartOffset]);
 
   if (loading && stats.totalModal === 0 && !fetchError) return (
     <div className="h-screen flex flex-col items-center justify-center p-20">
@@ -1369,8 +1411,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
       {activeTab === 'home' ? (
         <div className="lg:grid lg:grid-cols-12 lg:gap-6 items-start">
-          {/* Header Stats and Chart (Full Width) */}
-          <div className="lg:col-span-12 space-y-4">
+          <div className="lg:col-span-12 xl:col-span-8 space-y-4">
             <div className="flex items-center justify-between px-1">
               <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.3em]">Statistik Utama</p>
               <div className="flex items-center gap-1.5">
@@ -1379,7 +1420,119 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
               </div>
             </div>
 
-            {/* Arus Kas Utama Chart (Full Width at Top) */}
+            {/* Total Modal Tersalur Card */}
+            <div 
+              className="bg-tokata-gradient p-4 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
+              onClick={() => setShowExplanation(true)}
+            >
+              {/* Background Image Layer */}
+              <div 
+                className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-500"
+                style={{ 
+                  backgroundImage: `url(${CARD_CONFIG.totalModalBackground})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  opacity: CARD_CONFIG.totalModalOpacity
+                }}
+              />
+              <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8 blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-white/20 rounded-lg text-white">
+                    <Database size={16} />
+                  </div>
+                  <p className="text-[9px] font-black text-white uppercase tracking-[0.2em]">Total Modal Tersalur</p>
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <p className="text-2xl font-black text-white tracking-tighter">
+                      Rp {stats.totalModalTersalur.toLocaleString('id-ID')}
+                    </p>
+                    <p className="text-xs font-bold text-white/60 tracking-tight">
+                      / $ {(stats.totalModalTersalur / 16000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <p className="text-[7px] font-black text-white/40 mt-1 uppercase tracking-[0.1em]">
+                    Klik untuk lihat rincian perhitungan
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {[
+                { label: 'Total Modal', val: stats.totalModal, color: 'cyan', icon: ICONS.Wallet },
+                { label: 'Saldo Kas', val: saldoKas, color: 'amber', icon: <Banknote size={14} />, onClick: () => setShowSaldoExplanation(true) },
+                { label: 'Out Pinjaman', val: stats.totalPinjaman, color: 'magenta', icon: ICONS.Doc },
+              ].map((s, i) => (
+                <div 
+                  key={i} 
+                  onClick={s.onClick}
+                  className={`bg-${s.color}-500/10 p-3 rounded-xl border border-${s.color}-500/20 flex flex-col justify-between min-h-[60px] ${s.onClick ? 'cursor-pointer active:scale-95 transition-all' : ''}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <p className={`text-[7px] font-black text-${s.color}-400 uppercase tracking-widest`}>{s.label}</p>
+                    <div className={`text-${s.color}-400 opacity-50`}>{s.icon}</div>
+                  </div>
+                  <div>
+                    <p className={`text-[10px] font-black text-${s.color}-300`}>
+                      Rp {s.val.toLocaleString('id-ID')}
+                    </p>
+                    {s.label === 'Saldo Kas' && (
+                      <p className="text-[5px] font-bold text-amber-500/50 uppercase tracking-tighter mt-0.5">Klik rincian</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: 'Operasional', val: stats.totalPengeluaran, color: 'rose', icon: ICONS.Expense },
+                { label: 'Pendapatan', val: stats.totalPemasukan, color: 'emerald', icon: <ArrowUpRight size={14} /> },
+              ].map((s, i) => (
+                <div key={i} className={`bg-${s.color}-500/10 p-3 rounded-xl border border-${s.color}-500/20 flex flex-col justify-between min-h-[60px]`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className={`text-[7px] font-black text-${s.color}-400 uppercase tracking-widest`}>{s.label}</p>
+                    <div className={`text-${s.color}-400 opacity-50`}>{s.icon}</div>
+                  </div>
+                  <p className={`text-[10px] font-black text-${s.color}-300`}>
+                    Rp {s.val.toLocaleString('id-ID')}
+                  </p>
+                </div>
+              ))}
+              
+              {/* Target Hari Ini Card */}
+              <div className="bg-violet-500/10 p-3 rounded-xl border border-violet-500/20 flex flex-col justify-between min-h-[60px] relative overflow-hidden">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[7px] font-black text-violet-400 uppercase tracking-widest">Target Hari Ini</p>
+                  <div className="text-violet-400 opacity-50"><ShieldCheck size={14} /></div>
+                </div>
+                <div>
+                  <div className="flex flex-col">
+                    <p className="text-[10px] font-black text-violet-300 leading-tight">
+                      Rp {targetData.real.toLocaleString('id-ID')}
+                    </p>
+                    <p className="text-[6px] font-bold text-violet-500/60 uppercase tracking-tighter">
+                      Target: Rp {targetData.target.toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                  <div className="mt-1.5 w-full bg-white/5 h-1 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-violet-500 transition-all duration-1000" 
+                      style={{ width: `${targetData.percent}%` }}
+                    />
+                  </div>
+                  <p className="text-[6px] font-bold text-violet-500/70 mt-0.5 text-right">
+                    {targetData.percent.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-12 xl:col-span-4 space-y-4 mt-4 lg:mt-0">
+             {/* Charts and secondary info moved here for desktop */}
             <div className="glass-cosmic p-4 rounded-2xl shadow-xl flex flex-col">
                 <h3 className="text-sm font-black text-white mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -1388,9 +1541,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   <div className="flex items-center gap-3">
                     <div className="flex bg-white/5 rounded-lg p-0.5 border border-white/10">
                       <button 
-                        onClick={() => setChartOffset(prev => prev + (isDesktop ? 30 : 7))}
+                        onClick={() => setChartOffset(prev => prev + 7)}
                         className="p-1 hover:bg-white/10 rounded-md text-slate-400 transition-colors"
-                        title={isDesktop ? "30 Hari Sebelumnya" : "7 Hari Sebelumnya"}
+                        title="7 Hari Sebelumnya"
                       >
                         <ChevronRight className="rotate-180" size={14} />
                       </button>
@@ -1401,10 +1554,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                         Hari Ini
                       </button>
                       <button 
-                        onClick={() => setChartOffset(prev => Math.max(0, prev - (isDesktop ? 30 : 7)))}
+                        onClick={() => setChartOffset(prev => Math.max(0, prev - 7))}
                         disabled={chartOffset === 0}
                         className={`p-1 rounded-md transition-colors ${chartOffset === 0 ? 'text-slate-700 cursor-not-allowed' : 'hover:bg-white/10 text-slate-400'}`}
-                        title={isDesktop ? "30 Hari Berikutnya" : "7 Hari Berikutnya"}
+                        title="7 Hari Berikutnya"
                       >
                         <ChevronRight size={14} />
                       </button>
@@ -1421,7 +1574,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   </div>
                 </div>
               </h3>
-                <div className="h-[220px] lg:h-[400px]">
+                <div className="h-[220px] lg:h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={dailyFlowData}>
                       <defs>
@@ -1448,7 +1601,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                         tickLine={false} 
                         tick={{fontSize: 7, fontWeight: 800, fill: '#64748b'}} 
                         dy={10}
-                        interval={isDesktop ? 2 : 0}
                       />
                       <YAxis 
                         axisLine={false} 
@@ -1515,122 +1667,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   </ResponsiveContainer>
                 </div>
               </div>
-          </div>
 
-          {/* Main Stats (Below Chart) */}
-          <div className="lg:col-span-12 xl:col-span-8 space-y-4">
-            {/* Total Modal Tersalur Card */}
-            <div 
-              className="bg-tokata-gradient p-6 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
-              onClick={() => setShowExplanation(true)}
-            >
-              <div 
-                className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-500"
-                style={{ 
-                  backgroundImage: `url(${CARD_CONFIG.totalModalBackground})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  opacity: CARD_CONFIG.totalModalOpacity
-                }}
-              />
-              <div className="absolute right-0 top-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8 blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-1.5 bg-white/20 rounded-lg text-white">
-                    <Database size={16} />
-                  </div>
-                  <p className="text-[9px] font-black text-white uppercase tracking-[0.2em]">Total Modal Tersalur</p>
-                </div>
-                <div className="flex flex-col">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <p className="text-3xl font-black text-white tracking-tighter">
-                      Rp {stats.totalModalTersalur.toLocaleString('id-ID')}
-                    </p>
-                    <p className="text-sm font-bold text-white/60 tracking-tight">
-                      / $ {(stats.totalModalTersalur / 16000).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <p className="text-[8px] font-black text-white/40 mt-1 uppercase tracking-[0.1em]">
-                    Klik untuk lihat rincian perhitungan
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {[
-                { label: 'Total Modal', val: stats.totalModal, color: 'cyan', icon: ICONS.Wallet },
-                { label: 'Saldo Kas', val: saldoKas, color: 'amber', icon: <Banknote size={14} />, onClick: () => setShowSaldoExplanation(true) },
-                { label: 'Out Pinjaman', val: stats.totalPinjaman, color: 'magenta', icon: ICONS.Doc },
-              ].map((s, i) => (
-                <div 
-                  key={i} 
-                  onClick={s.onClick}
-                  className={`bg-${s.color}-500/10 p-4 rounded-xl border border-${s.color}-500/20 flex flex-col justify-between min-h-[80px] ${s.onClick ? 'cursor-pointer active:scale-95 transition-all' : ''}`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <p className={`text-[8px] font-black text-${s.color}-400 uppercase tracking-widest`}>{s.label}</p>
-                    <div className={`text-${s.color}-400 opacity-50`}>{s.icon}</div>
-                  </div>
-                  <div>
-                    <p className={`text-sm font-black text-${s.color}-300`}>
-                      Rp {s.val.toLocaleString('id-ID')}
-                    </p>
-                    {s.label === 'Saldo Kas' && (
-                      <p className="text-[6px] font-bold text-amber-500/50 uppercase tracking-tighter mt-0.5">Klik rincian</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {[
-                { label: 'Operasional', val: stats.totalPengeluaran, color: 'rose', icon: ICONS.Expense },
-                { label: 'Pendapatan', val: stats.totalPemasukan, color: 'emerald', icon: <ArrowUpRight size={14} /> },
-              ].map((s, i) => (
-                <div key={i} className={`bg-${s.color}-500/10 p-4 rounded-xl border border-${s.color}-500/20 flex flex-col justify-between min-h-[80px]`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className={`text-[8px] font-black text-${s.color}-400 uppercase tracking-widest`}>{s.label}</p>
-                    <div className={`text-${s.color}-400 opacity-50`}>{s.icon}</div>
-                  </div>
-                  <p className={`text-sm font-black text-${s.color}-300`}>
-                    Rp {s.val.toLocaleString('id-ID')}
-                  </p>
-                </div>
-              ))}
-              
-              {/* Target Hari Ini Card */}
-              <div className="bg-violet-500/10 p-4 rounded-xl border border-violet-500/20 flex flex-col justify-between min-h-[80px] relative overflow-hidden">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-[8px] font-black text-violet-400 uppercase tracking-widest">Target Hari Ini</p>
-                  <div className="text-violet-400 opacity-50"><ShieldCheck size={14} /></div>
-                </div>
-                <div>
-                  <div className="flex flex-col">
-                    <p className="text-sm font-black text-violet-300 leading-tight">
-                      Rp {targetData.real.toLocaleString('id-ID')}
-                    </p>
-                    <p className="text-[8px] font-bold text-violet-500/60 uppercase tracking-tighter">
-                      Target: Rp {targetData.target.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                  <div className="mt-1.5 w-full bg-white/5 h-1 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-violet-500 transition-all duration-1000" 
-                      style={{ width: `${targetData.percent}%` }}
-                    />
-                  </div>
-                  <p className="text-[7px] font-bold text-violet-500/70 mt-0.5 text-right">
-                    {targetData.percent.toFixed(1)}%
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons (Right or Bottom) */}
-          <div className="lg:col-span-12 xl:col-span-4 space-y-4 lg:mt-0 mt-4">
             <div className="grid grid-cols-1 gap-3">
               <button 
                 onClick={() => setShowExpenseModal(true)}
@@ -1655,7 +1692,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                 onClick={() => {
                   setShowValidationView(true);
                   fetchValidationData();
-                  fetchData(); 
+                  fetchData(); // Refresh mutasiList to ensure tagihan calculation is accurate
                 }}
                 className="flex items-center justify-between p-4 bg-slate-800 rounded-2xl shadow-lg active:scale-95 transition-all group relative overflow-hidden border border-white/5"
               >
