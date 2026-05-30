@@ -2024,15 +2024,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                     let nextDueDate: Date | null = null;
                     let isOverdue = false;
                     let isDueToday = false;
-                    const isPartial = Number(loan.sisa_hutang) < Number(loan.total_hutang);
+                    
+                    const totalHutang = Number(loan.total_hutang);
+                    const sisaHutang = Number(loan.sisa_hutang);
+                    const cicilan = Number(loan.cicilan || 1);
+                    const totalPaid = totalHutang - sisaHutang;
+                    const isPartial = totalPaid > 0 && (totalPaid % cicilan) > 2 && (totalPaid % cicilan) < (cicilan - 2);
 
                     if (!isLunas) {
                       const schedule = generateLoanSchedule(loan.tanggal_cair || loan.tanggal_acc, loan.tenor);
-                      const totalHutang = Number(loan.total_hutang);
-                      const sisaHutang = Number(loan.sisa_hutang);
-                      const cicilan = Number(loan.cicilan);
-                      
-                      const installmentsPaid = Math.floor((totalHutang - sisaHutang) / cicilan);
+                      const installmentsPaid = Math.floor(totalPaid / cicilan);
                       const nextInstallmentIndex = installmentsPaid;
                       
                       if (nextInstallmentIndex < schedule.length) {
