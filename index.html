@@ -5,6 +5,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TOKATA DIGITAL KOPERASI</title>
+
+    <link rel="manifest" href="/manifest.json">
+
+    <meta name="theme-color" content="#0f172a">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TOKATA">
+
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/pwa-512.png">
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -108,6 +123,22 @@
         .no-scrollbar {
             -ms-overflow-style: none;
             scrollbar-width: none;
+        }
+
+        html,
+        body {
+            overscroll-behavior: none;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        img {
+            -webkit-user-drag: none;
+            user-select: none;
         }
     </style>
     <script>
