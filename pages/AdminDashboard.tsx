@@ -83,6 +83,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     totalAngsuran: 0,
     totalPinjamanCair: 0,
     totalHutang: 0,
+    totalPiutang: 0,
     totalModalTersalur: 0,
     activeMembers: 0
   });
@@ -520,16 +521,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       // 2. STATUS MODAL TERSALUR (MATCH DASHBOARD)
       let currentY = (doc as any).lastAutoTable.finalY + 15;
       doc.setFontSize(14);
-      doc.text("2. Rincian Modal Tersalur (Total Kekayaan)", 20, currentY);
+      doc.text("2. Rincian Aset Koperasi", 20, currentY);
       
       const tersalurData = [
-        ["(+) Modal Awal", `Rp ${stats.totalModal.toLocaleString('id-ID')}`],
-        ["(-) Semua Pinjaman (Pokok)", `Rp ${stats.totalPinjamanCair.toLocaleString('id-ID')}`],
-        ["(+) Total Pengembalian (Pokok+Bunga)", `Rp ${stats.totalHutang.toLocaleString('id-ID')}`],
+        ["(+) Saldo Kas (Uang Tunai)", `Rp ${saldoKas.toLocaleString('id-ID')}`],
         ["(+) Total Pemasukan (Admin)", `Rp ${stats.totalPemasukan.toLocaleString('id-ID')}`],
-        ["(+) Simpanan Bersih", `Rp ${stats.totalSimpanan.toLocaleString('id-ID')}`],
+        ["(+) Total Piutang (Sisa Pinjaman Nyata)", `Rp ${(stats.totalPiutang || 0).toLocaleString('id-ID')}`],
         ["(-) Total Pengeluaran", `Rp ${stats.totalPengeluaran.toLocaleString('id-ID')}`],
-        ["TOTAL MODAL TERSALUR", `Rp ${stats.totalModalTersalur.toLocaleString('id-ID')}`],
+        ["TOTAL ASET KOPERASI", `Rp ${stats.totalModalTersalur.toLocaleString('id-ID')}`],
       ];
 
       autoTable(doc, {
@@ -539,7 +538,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
         didDrawCell: (data) => {
-          if (data.section === 'body' && data.row.index === 6) {
+          if (data.section === 'body' && data.row.index === 4) {
             doc.setFont("helvetica", "bold");
           }
         }
@@ -547,7 +546,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
       doc.setFontSize(8);
       doc.setTextColor(100);
-      doc.text("*Modal Tersalur adalah gambaran seluruh kekayaan koperasi yang sedang berputar (mencakup modal, piutang, simpanan, dan laba).", 20, (doc as any).lastAutoTable.finalY + 5);
+      doc.text("*Aset Koperasi adalah gambaran seluruh kekayaan koperasi saat ini, dihitung dari Saldo Kas, Total Pemasukan administrasi (admin cair), dan sisa piutang pinjaman nyata yang masih aktif, dikurangi total pengeluaran.", 20, (doc as any).lastAutoTable.finalY + 5);
       doc.setTextColor(40);
 
       // 3. RINCIAN SALDO KAS (MATCH DASHBOARD)
@@ -926,7 +925,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
         const modalAwal = result.data.stats?.modal || 0;
         
-        const totalModalTersalur = modalAwal - totalPinjamanCair + totalHutang + totalIncome + totalSimpanan - totalPengeluaran;
+        const tempSaldoKas = modalAwal + totalIncome + totalSimpanan + totalAngsuran - totalPinjamanCair - totalPengeluaran;
+        
+        const totalPiutang = allLoansData
+          .filter((loan: any) => loan.status !== 'Lunas' && Number(loan.sisa_hutang) > 0)
+          .reduce((acc: number, loan: any) => acc + cleanNum(loan.sisa_hutang), 0);
+
+        const totalModalTersalur = tempSaldoKas + totalIncome + totalPiutang - totalPengeluaran;
 
         setStats({
           totalModal: modalAwal,
@@ -937,6 +942,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
           totalAngsuran: totalAngsuran,
           totalPinjamanCair: totalPinjamanCair,
           totalHutang: totalHutang,
+          totalPiutang: totalPiutang,
           totalModalTersalur: totalModalTersalur,
           activeMembers: result.data.stats?.total_nasabah || 0
         });
@@ -1420,7 +1426,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
               </div>
             </div>
 
-            {/* Total Modal Tersalur Card */}
+            {/* Total Aset Koperasi Card */}
             <div 
               className="bg-tokata-gradient p-4 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
               onClick={() => setShowExplanation(true)}
@@ -1441,7 +1447,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   <div className="p-1.5 bg-white/20 rounded-lg text-white">
                     <Database size={16} />
                   </div>
-                  <p className="text-[9px] font-black text-white uppercase tracking-[0.2em]">Total Modal Tersalur</p>
+                  <p className="text-[9px] font-black text-white uppercase tracking-[0.2em]">TOTAL ASET KOPERASI</p>
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-2 flex-wrap">
@@ -3063,7 +3069,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
           </button>
         </div>
       )}
-      {/* Modal Penjelasan Total Modal Tersalur */}
+      {/* Modal Penjelasan Total Aset Koperasi */}
       {showExplanation && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="w-full max-w-sm bg-slate-900 rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden animate-in zoom-in duration-300">
@@ -3079,7 +3085,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   <Database size={20} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-white tracking-tight">Rincian Modal</h3>
+                  <h3 className="text-lg font-black text-white tracking-tight">Aset Koperasi</h3>
                   <p className="text-[8px] font-bold text-white/60 uppercase tracking-widest">Penjelasan Perhitungan</p>
                 </div>
               </div>
@@ -3088,24 +3094,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
             <div className="p-6 space-y-4">
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-slate-400 font-bold uppercase tracking-widest">Modal Awal</span>
-                  <span className="text-cyan-400 font-black">Rp {stats.totalModal.toLocaleString('id-ID')}</span>
+                  <span className="text-slate-400 font-bold uppercase tracking-widest">Saldo Kas (Uang Tunai)</span>
+                  <span className="text-amber-400 font-black">Rp {saldoKas.toLocaleString('id-ID')}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-slate-400 font-bold uppercase tracking-widest">Semua Pinjaman (Pokok)</span>
-                  <span className="text-rose-400 font-black">- Rp {stats.totalPinjamanCair.toLocaleString('id-ID')}</span>
-                </div>
-                <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-slate-400 font-bold uppercase tracking-widest">Total Pengembalian</span>
-                  <span className="text-indigo-400 font-black">+ Rp {stats.totalHutang.toLocaleString('id-ID')}</span>
-                </div>
-                <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-slate-400 font-bold uppercase tracking-widest">Total Pemasukan</span>
+                  <span className="text-slate-400 font-bold uppercase tracking-widest">Total Pemasukan (Admin)</span>
                   <span className="text-emerald-400 font-black">+ Rp {stats.totalPemasukan.toLocaleString('id-ID')}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-slate-400 font-bold uppercase tracking-widest">Simpanan Bersih</span>
-                  <span className="text-amber-400 font-black">+ Rp {stats.totalSimpanan.toLocaleString('id-ID')}</span>
+                  <span className="text-slate-400 font-bold uppercase tracking-widest">Total Piutang (Sisa Pinjaman Nyata)</span>
+                  <span className="text-indigo-400 font-black">+ Rp {(stats.totalPiutang || 0).toLocaleString('id-ID')}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px]">
                   <span className="text-slate-400 font-bold uppercase tracking-widest">Total Pengeluaran</span>
@@ -3115,7 +3113,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
               <div className="pt-4 border-t border-white/5">
                 <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Hasil Akhir</p>
+                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Aset Koperasi</p>
                   <p className="text-xl font-black text-white tracking-tighter">
                     Rp {stats.totalModalTersalur.toLocaleString('id-ID')}
                   </p>
@@ -3123,7 +3121,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
               </div>
 
               <p className="text-[8px] text-slate-500 font-medium leading-relaxed italic">
-                *Total Modal Tersalur adalah gambaran seluruh kekayaan koperasi yang sedang berputar, mencakup modal awal, potensi pengembalian pinjaman (pokok + bunga), simpanan nasabah, dan pendapatan, dikurangi biaya operasional.
+                *Total Aset Koperasi adalah gambaran seluruh kekayaan koperasi saat ini, dihitung dari Saldo Kas, Total Pemasukan administrasi (admin cair), dan sisa piutang pinjaman nyata yang masih aktif, dikurangi total pengeluaran.
               </p>
             </div>
 
