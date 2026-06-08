@@ -525,9 +525,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       
       const tersalurData = [
         ["(+) Saldo Kas (Uang Tunai)", `Rp ${saldoKas.toLocaleString('id-ID')}`],
-        ["(+) Total Pemasukan (Admin)", `Rp ${stats.totalPemasukan.toLocaleString('id-ID')}`],
         ["(+) Total Piutang (Sisa Pinjaman Nyata)", `Rp ${(stats.totalPiutang || 0).toLocaleString('id-ID')}`],
-        ["(-) Total Pengeluaran", `Rp ${stats.totalPengeluaran.toLocaleString('id-ID')}`],
         ["TOTAL ASET KOPERASI", `Rp ${stats.totalModalTersalur.toLocaleString('id-ID')}`],
       ];
 
@@ -538,7 +536,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229] },
         didDrawCell: (data) => {
-          if (data.section === 'body' && data.row.index === 4) {
+          if (data.section === 'body' && data.row.index === 2) {
             doc.setFont("helvetica", "bold");
           }
         }
@@ -546,7 +544,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
       doc.setFontSize(8);
       doc.setTextColor(100);
-      doc.text("*Aset Koperasi adalah gambaran seluruh kekayaan koperasi saat ini, dihitung dari Saldo Kas, Total Pemasukan administrasi (admin cair), dan sisa piutang pinjaman nyata yang masih aktif, dikurangi total pengeluaran.", 20, (doc as any).lastAutoTable.finalY + 5);
+      doc.text("*Aset Koperasi adalah gambaran seluruh kekayaan koperasi saat ini, dihitung dari Saldo Kas (Uang Tunai) ditambah dengan Sisa Piutang Pinjaman Nyata.", 20, (doc as any).lastAutoTable.finalY + 5);
       doc.setTextColor(40);
 
       // 3. RINCIAN SALDO KAS (MATCH DASHBOARD)
@@ -931,7 +929,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
           .filter((loan: any) => loan.status !== 'Lunas' && Number(loan.sisa_hutang) > 0)
           .reduce((acc: number, loan: any) => acc + cleanNum(loan.sisa_hutang), 0);
 
-        const totalModalTersalur = tempSaldoKas + totalIncome + totalPiutang - totalPengeluaran;
+        const totalModalTersalur = tempSaldoKas + totalPiutang;
 
         setStats({
           totalModal: modalAwal,
@@ -3098,16 +3096,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                   <span className="text-amber-400 font-black">Rp {saldoKas.toLocaleString('id-ID')}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-slate-400 font-bold uppercase tracking-widest">Total Pemasukan (Admin)</span>
-                  <span className="text-emerald-400 font-black">+ Rp {stats.totalPemasukan.toLocaleString('id-ID')}</span>
-                </div>
-                <div className="flex justify-between items-center text-[10px]">
                   <span className="text-slate-400 font-bold uppercase tracking-widest">Total Piutang (Sisa Pinjaman Nyata)</span>
                   <span className="text-indigo-400 font-black">+ Rp {(stats.totalPiutang || 0).toLocaleString('id-ID')}</span>
-                </div>
-                <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-slate-400 font-bold uppercase tracking-widest">Total Pengeluaran</span>
-                  <span className="text-rose-400 font-black">- Rp {stats.totalPengeluaran.toLocaleString('id-ID')}</span>
                 </div>
               </div>
 
@@ -3121,7 +3111,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
               </div>
 
               <p className="text-[8px] text-slate-500 font-medium leading-relaxed italic">
-                *Total Aset Koperasi adalah gambaran seluruh kekayaan koperasi saat ini, dihitung dari Saldo Kas, Total Pemasukan administrasi (admin cair), dan sisa piutang pinjaman nyata yang masih aktif, dikurangi total pengeluaran.
+                *Total Aset Koperasi adalah gambaran kekayaan nyata koperasi saat ini, diperoleh dari penjumlahan Saldo Kas (Uang Tunai) yang dipegang dan Sisa Piutang Pinjaman Nyata yang masih berjalan di luar.
               </p>
             </div>
 
