@@ -3,8 +3,55 @@ import { createServer as createViteServer } from "vite";
 import fs from "fs";
 import path from "path";
 import cors from "cors";
+import crypto from "crypto";
 
 const DB_FILE = path.join(process.cwd(), "db.json");
+const PHOTO_CACHE_DIR = path.join(process.cwd(), "photo_cache");
+
+// Ensure photo cache directory exists
+try {
+  if (!fs.existsSync(PHOTO_CACHE_DIR)) {
+    fs.mkdirSync(PHOTO_CACHE_DIR, { recursive: true });
+  }
+} catch (e) {
+  console.error("Failed to create photo cache directory:", e);
+}
+
+// Recursive helper to find and strip large base64 images from responses
+function processPhotos(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  
+  if (typeof obj === "string") {
+    // Check if the string is a data URL image
+    if (obj.startsWith("data:image/")) {
+      try {
+        const hash = crypto.createHash("md5").update(obj).digest("hex");
+        const filePath = path.join(PHOTO_CACHE_DIR, `${hash}.txt`);
+        if (!fs.existsSync(filePath)) {
+          fs.writeFileSync(filePath, obj, "utf-8");
+        }
+        return `/api/photo?hash=${hash}`;
+      } catch (err) {
+        console.error("Error writing to photo cache:", err);
+      }
+    }
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => processPhotos(item));
+  }
+  
+  if (typeof obj === "object") {
+    const newObj: any = {};
+    for (const key of Object.keys(obj)) {
+      newObj[key] = processPhotos(obj[key]);
+    }
+    return newObj;
+  }
+  
+  return obj;
+}
 
 // Initialize DB if not exists
 try {
@@ -89,6 +136,39 @@ async function startServer() {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Photo streaming route for lazy loading
+  app.get("/api/photo", (req, res) => {
+    const hash = req.query.hash as string;
+    if (!hash || !/^[a-f0-9]{32}$/.test(hash)) {
+      return res.status(400).send("Invalid hash");
+    }
+    const filePath = path.join(PHOTO_CACHE_DIR, `${hash}.txt`);
+    if (fs.existsSync(filePath)) {
+      try {
+        const base64Data = fs.readFileSync(filePath, "utf-8");
+        if (base64Data.startsWith("data:image/")) {
+          const match = base64Data.match(/^data:([^;]+);base64,(.*)$/);
+          if (match) {
+            const contentType = match[1];
+            const buffer = Buffer.from(match[2], 'base64');
+            res.setHeader("Content-Type", contentType);
+            res.setHeader("Cache-Control", "public, max-age=31536000"); // Cache for 1 year
+            return res.send(buffer);
+          }
+        }
+        // Fallback
+        res.setHeader("Content-Type", "image/jpeg");
+        res.setHeader("Cache-Control", "public, max-age=31536000");
+        const cleanBase64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, "");
+        return res.send(Buffer.from(cleanBase64, 'base64'));
+      } catch (err) {
+        console.error("Error serving cached photo:", err);
+        return res.status(500).send("Internal server error");
+      }
+    }
+    return res.status(404).send("Photo not found");
+  });
+
   // API Routes
   app.post(["/api", "/"], async (req, res) => {
     console.log(`[Server] Received request: ${req.body?.action}`);
@@ -119,8 +199,12 @@ async function startServer() {
         const text = await response.text();
         
         try {
-          const data = JSON.parse(text);
+          let data = JSON.parse(text);
           console.log(`[Proxy Success] ${req.body.action} response received`);
+          
+          // Lazy load photos to reduce response payload size and speed up client loading
+          data = processPhotos(data);
+          
           return res.json(data);
         } catch (parseError) {
           console.error(`[Proxy Error] Non-JSON response for ${req.body.action}:`, text.substring(0, 1000));
