@@ -64,16 +64,48 @@ app.use(express.json({ limit: '50mb', type: ['application/json', 'text/plain'] }
 
 // Catch-all GET
 app.get("*", async (req, res) => {
-  const urlPath = req.path || req.url || "";
+  const originalUrl = req.originalUrl || "";
+  const reqUrl = req.url || "";
+  const reqPath = req.path || "";
+
+  const isPhotoRequest = 
+    originalUrl.includes("photo") || 
+    reqUrl.includes("photo") || 
+    reqPath.includes("photo");
   
   // 1. Check for Photo Request
-  if (urlPath.includes("photo")) {
+  if (isPhotoRequest) {
     const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://backend.tokata.site/v1/admin";
     if (!remoteUrl || !remoteUrl.startsWith('http')) {
       return res.status(404).send("No remote api configured");
     }
 
-    const queryParams = new URLSearchParams(req.query as any);
+    // Extract query parameters robustly from all possible sources
+    const queryParams = new URLSearchParams();
+    
+    // a. From Express req.query
+    if (req.query) {
+      for (const [key, val] of Object.entries(req.query)) {
+        if (typeof val === 'string') {
+          queryParams.set(key, val);
+        } else if (Array.isArray(val) && val.length > 0) {
+          queryParams.set(key, String(val[0]));
+        }
+      }
+    }
+    
+    // b. Supplement or fallback from the raw URL string
+    const urlToParse = originalUrl || reqUrl;
+    if (urlToParse.includes("?")) {
+      const qStr = urlToParse.substring(urlToParse.indexOf("?") + 1);
+      const parsedParams = new URLSearchParams(qStr);
+      for (const [key, val] of parsedParams.entries()) {
+        if (!queryParams.has(key)) {
+          queryParams.set(key, val);
+        }
+      }
+    }
+
     if (!queryParams.has('action')) {
       queryParams.set('action', 'GET_PHOTO');
     }
@@ -86,6 +118,7 @@ app.get("*", async (req, res) => {
 
       const response = await fetch(targetUrl, {
         method: 'GET',
+        redirect: 'follow',
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -111,7 +144,7 @@ app.get("*", async (req, res) => {
     status: "ok", 
     timestamp: new Date().toISOString(), 
     env: "vercel-serverless",
-    path_received: urlPath,
+    path_received: reqPath || reqUrl,
     proxy_active: !!(process.env.VITE_API_URL || process.env.API_URL)
   });
 });
