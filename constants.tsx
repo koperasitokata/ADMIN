@@ -22,7 +22,7 @@ import {
   UserCheck
 } from 'lucide-react';
 
-export const API_URL = "/api";
+export const API_URL = "https://backend.tokata.site/v1/admin";
 
 export const callApi = async (action: string, payload: any) => {
   console.log(`[API Call] Action: ${action}`);
