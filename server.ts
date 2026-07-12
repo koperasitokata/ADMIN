@@ -139,13 +139,13 @@ async function startServer() {
   app.use(express.json({ limit: '50mb', type: ['application/json', 'text/plain'] }));
 
   // Health Check
-  app.get(["/api/health", "/health"], (req, res) => {
+  app.get(["/api/health", "/health", "*/health"], (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
   // GET Image Proxy under secure HTTPS
-  app.get("/api/photo", async (req, res) => {
-    const remoteUrl = process.env.VITE_API_URL || "https://script.google.com/macros/s/AKfycbwRvcXUI1GVEo-Uc83Y_8eizho-LWPlsHXmcsA_tg2JAspUl9LBF5Sdak3MpiQduajt2g/exec";
+  app.get(["/api/photo", "/photo", "*/photo"], async (req, res) => {
+    const remoteUrl = process.env.VITE_API_URL || "https://backend.tokata.site/v1/admin";
     if (!remoteUrl || !remoteUrl.startsWith('http')) {
       return res.status(404).send("No remote api configured");
     }
@@ -159,7 +159,7 @@ async function startServer() {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const response = await fetch(targetUrl, {
         method: 'GET',
@@ -187,16 +187,16 @@ async function startServer() {
   });
 
   // API Routes
-  app.post(["/api", "/"], async (req, res) => {
+  app.post(["/api", "/api/*", "/", "*"], async (req, res) => {
     console.log(`[Server] Received request: ${req.body?.action}`);
     
     // Gunakan URL dari environment atau fallback ke URL yang sudah ada
-    const remoteUrl = process.env.VITE_API_URL || "https://script.google.com/macros/s/AKfycbwRvcXUI1GVEo-Uc83Y_8eizho-LWPlsHXmcsA_tg2JAspUl9LBF5Sdak3MpiQduajt2g/exec";
+    const remoteUrl = process.env.VITE_API_URL || "https://backend.tokata.site/v1/admin";
     
     // Jika ada URL remote, teruskan permintaan ke sana (Proxy Mode)
     if (remoteUrl && remoteUrl.startsWith('http')) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 Sec hard connection timeout limits
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 Sec hard connection timeout limits
 
       try {
         const bodyStr = JSON.stringify(req.body);
