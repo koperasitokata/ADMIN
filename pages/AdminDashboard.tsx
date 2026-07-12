@@ -33,6 +33,7 @@ L.Icon.Default.mergeOptions({
 interface AdminDashboardProps {
   user: Petugas;
   onLogout: () => void;
+  onUpdateUser?: (updatedUser: Petugas) => void;
 }
 
 const cleanNum = (val: any) => {
@@ -43,9 +44,32 @@ const cleanNum = (val: any) => {
   return isNaN(parsed) ? 0 : parsed;
 };
 
+const getLocalDateString = (val: any): string => {
+  if (!val) return '';
+  const d = val instanceof Date ? val : toDate(val);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const getInitialBg = (nama: string) => {
+  const nameStr = nama || "N";
+  const code = nameStr.charCodeAt(0) % 5;
+  const colors = [
+    'bg-sky-500/10 text-sky-400 border-sky-500/20',
+    'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    'bg-violet-500/10 text-violet-400 border-violet-500/20',
+    'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20',
+  ];
+  return colors[code];
+};
+
 const MONTHS_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUpdateUser }) => {
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get('v') || 'home';
   const [pengajuan, setPengajuan] = useState<PengajuanPinjaman[]>([]);
@@ -60,7 +84,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   const [activeLoanId, setActiveLoanId] = useState<string | null>(null);
   const [showReportDateModal, setShowReportDateModal] = useState(false);
   const [showMonthlyReportModal, setShowMonthlyReportModal] = useState(false);
-  const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reportDate, setReportDate] = useState(() => getLocalDateString(new Date()));
   const [reportMonth, setReportMonth] = useState(new Date().getMonth());
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -131,7 +155,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     keterangan_admin: '',
     status_penyelesaian: 'Belum Selesai',
     bukti_foto: '',
-    tanggal: new Date().toISOString().split('T')[0]
+    tanggal: getLocalDateString(new Date())
   });
 
   const [editingMember, setEditingMember] = useState<Nasabah | null>(null);
@@ -140,7 +164,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [settingsPage, setSettingsPage] = useState<string | null>(null);
   const [adminLocation, setAdminLocation] = useState<[number, number] | null>(null);
-  const [adminPhoto, setAdminPhoto] = useState<string | null>(user.foto || null);
+  const [adminPhoto, setAdminPhoto] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (user.foto) {
+      let secureUrl = user.foto;
+      if (secureUrl.includes('action=GET_PHOTO')) {
+        const queryIdx = secureUrl.indexOf('?');
+        if (queryIdx >= 0) {
+          secureUrl = `/api/photo${secureUrl.substring(queryIdx)}`;
+        }
+      }
+      setAdminPhoto(secureUrl);
+    } else {
+      setAdminPhoto(null);
+    }
+  }, [user.foto]);
+
   const adminPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -200,7 +240,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       doc.setTextColor(40);
       
       const dailyMutations = mutasiList.filter(m => {
-        const mDate = new Date(m.tanggal || m.tanggal_acc || m.tanggal_cair).toISOString().split('T')[0];
+        const mDate = getLocalDateString(m.tanggal || m.tanggal_acc || m.tanggal_cair);
         return mDate === selectedDateStr;
       });
 
@@ -232,7 +272,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       allLoans.filter(l => l.status === 'Aktif').forEach(loan => {
         const schedule = generateLoanSchedule(loan.tanggal_cair || loan.tanggal_acc, loan.tenor);
         schedule.forEach((date, idx) => {
-          const sDate = new Date(date).toISOString().split('T')[0];
+          const sDate = getLocalDateString(date);
           if (sDate === selectedDateStr) {
             dailyTargets.push([
               loan.id_pinjaman,
@@ -286,7 +326,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       doc.setTextColor(40);
       
       const dailyValidations = latestValidationList.filter((v: any) => {
-        const vDate = new Date(v.tanggal).toISOString().split('T')[0];
+        const vDate = getLocalDateString(v.tanggal);
         return vDate === selectedDateStr;
       });
 
@@ -339,7 +379,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
       // Hitung Saldo Kas Kumulatif (Sistem) sampai dengan tanggal laporan
       const mutationsOnOrBefore = mutasiList.filter(m => {
-        const mDate = new Date(m.tanggal || m.tanggal_acc || m.tanggal_cair).toISOString().split('T')[0];
+        const mDate = getLocalDateString(m.tanggal || m.tanggal_acc || m.tanggal_cair);
         return mDate <= selectedDateStr;
       });
 
@@ -365,7 +405,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
       const historicalPinjamanCair = allLoans
         .filter(loan => {
-          const loanDate = new Date(loan.tanggal_cair || loan.tanggal_acc).toISOString().split('T')[0];
+          const loanDate = getLocalDateString(loan.tanggal_cair || loan.tanggal_acc);
           return loanDate <= selectedDateStr;
         })
         .reduce((acc, loan) => acc + cleanNum(loan.pokok), 0);
@@ -375,7 +415,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
       // Hitung Kumulatif Selisih Kas untuk menyesuaikan Kas Fisik
       const validationsOnOrBefore = latestValidationList.filter((v: any) => {
-        const vDate = new Date(v.tanggal).toISOString().split('T')[0];
+        const vDate = getLocalDateString(v.tanggal);
         return vDate <= selectedDateStr;
       });
 
@@ -674,7 +714,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
 
     // Check for duplicates
     const isDuplicate = validationList.some(v => {
-      const vDate = new Date(v.tanggal).toISOString().split('T')[0];
+      const vDate = getLocalDateString(v.tanggal);
       return v.id_petugas === validationForm.id_petugas && vDate === validationForm.tanggal;
     });
 
@@ -712,7 +752,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
           keterangan_admin: '',
           status_penyelesaian: 'Belum Selesai',
           bukti_foto: '',
-          tanggal: new Date().toISOString().split('T')[0]
+          tanggal: getLocalDateString(new Date())
         });
         setIsAddingValidation(false);
         fetchValidationData();
@@ -821,7 +861,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
     try {
       const result = await callApi('GET_DASHBOARD_DATA', { role: 'ADMIN', id_user: user.id_petugas });
       if (result.success) {
-        const rawPemasukan = result.data.pemasukan_list || result.data.pemasukan || [];
         const rawMutasi = result.data.mutasi || [];
         
         setNasabahList(result.data.nasabah_list || result.data.nasabah || []);
@@ -891,49 +930,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
           const normalized = normalize(m);
           uniqueMap.set(getUniqueKey(normalized), normalized);
         });
-
-        rawPemasukan.forEach((p: any) => {
-          const normalized = normalize(p, 'Pemasukan');
-          uniqueMap.set(getUniqueKey(normalized), normalized);
-        });
         
         const combined = Array.from(uniqueMap.values());
         combined.sort((a, b) => b.tanggal.getTime() - a.tanggal.getTime());
         setMutasiList(combined);
 
-        const totalIncome = combined
-          .filter(m => m.tipe === 'Pemasukan')
-          .reduce((acc, curr) => acc + curr.nominal, 0);
+        const totalIncome = result.data.stats?.pemasukan !== undefined 
+          ? Number(result.data.stats.pemasukan) 
+          : combined.filter(m => m.tipe === 'Pemasukan').reduce((acc, curr) => acc + curr.nominal, 0);
 
-        const totalAngsuran = combined
-          .filter(m => m.tipe === 'Angsuran')
-          .reduce((acc, curr) => acc + curr.nominal, 0);
+        const totalAngsuran = result.data.stats?.angsuran !== undefined 
+          ? Number(result.data.stats.angsuran) 
+          : combined.filter(m => m.tipe === 'Angsuran').reduce((acc, curr) => acc + curr.nominal, 0);
 
         // Calculate total pengeluaran excluding "Cair Simpanan" to avoid double counting with Simpanan Bersih
-        const totalPengeluaran = combined
-          .filter(m => (m.tipe === 'Pengeluaran' || m.jenis === 'Uang Transport') && !m.ket.toLowerCase().includes('cair simpanan'))
-          .reduce((acc, curr) => acc + curr.nominal, 0);
+        const totalPengeluaran = result.data.stats?.pengeluaran !== undefined 
+          ? Number(result.data.stats.pengeluaran) 
+          : combined.filter(m => (m.tipe === 'Pengeluaran' || m.jenis === 'Uang Transport') && !m.ket.toLowerCase().includes('cair simpanan')).reduce((acc, curr) => acc + curr.nominal, 0);
 
         const allLoansData = result.data.all_loans || [];
-        const totalPinjamanCair = allLoansData.reduce((acc: number, loan: any) => acc + cleanNum(loan.pokok), 0);
+        const totalPinjamanCair = result.data.stats?.pinjaman_cair !== undefined 
+          ? Number(result.data.stats.pinjaman_cair) 
+          : allLoansData.reduce((acc: number, loan: any) => acc + cleanNum(loan.pokok), 0);
         const totalHutang = allLoansData.reduce((acc: number, loan: any) => acc + cleanNum(loan.total_hutang), 0);
         
-        const simpananData = result.data.simpanan || [];
-        const totalSimpanan = simpananData.reduce((acc: number, s: any) => acc + (cleanNum(s.setor) - cleanNum(s.tarik)), 0);
+        const totalSimpanan = result.data.stats?.simpanan !== undefined 
+          ? Number(result.data.stats.simpanan) 
+          : (result.data.simpanan || []).reduce((acc: number, s: any) => acc + (cleanNum(s.setor) - cleanNum(s.tarik)), 0);
 
-        const modalAwal = result.data.stats?.modal || 0;
+        const modalAwal = result.data.stats?.modal !== undefined ? Number(result.data.stats.modal) : 0;
         
         const tempSaldoKas = modalAwal + totalIncome + totalSimpanan + totalAngsuran - totalPinjamanCair - totalPengeluaran;
         
-        const totalPiutang = allLoansData
-          .filter((loan: any) => loan.status !== 'Lunas' && Number(loan.sisa_hutang) > 0)
-          .reduce((acc: number, loan: any) => acc + cleanNum(loan.sisa_hutang), 0);
+        const totalPiutang = result.data.stats?.piutang !== undefined 
+          ? Number(result.data.stats.piutang) 
+          : allLoansData.filter((loan: any) => loan.status !== 'Lunas' && Number(loan.sisa_hutang) > 0).reduce((acc: number, loan: any) => acc + cleanNum(loan.sisa_hutang), 0);
 
         const totalModalTersalur = tempSaldoKas + totalPiutang;
 
         setStats({
           totalModal: modalAwal,
-          totalPinjaman: result.data.stats?.pinjaman_aktif || 0,
+          totalPinjaman: result.data.stats?.pinjaman_aktif !== undefined ? Number(result.data.stats.pinjaman_aktif) : 0,
           totalPengeluaran: totalPengeluaran,
           totalPemasukan: totalIncome,
           totalSimpanan: totalSimpanan,
@@ -1244,12 +1281,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       
       if (res.success) {
         setAdminPhoto(compressedBase64);
-        // Update localStorage agar foto tetap ada setelah refresh
-        const savedAuth = localStorage.getItem('koperasi_auth');
-        if (savedAuth) {
-          const auth = JSON.parse(savedAuth);
-          auth.user.foto = compressedBase64;
-          localStorage.setItem('koperasi_auth', JSON.stringify(auth));
+        if (onUpdateUser) {
+          onUpdateUser({ ...user, foto: compressedBase64 });
+        } else {
+          // Update localStorage agar foto tetap ada setelah refresh
+          const savedAuth = localStorage.getItem('koperasi_auth');
+          if (savedAuth) {
+            const auth = JSON.parse(savedAuth);
+            auth.user.foto = compressedBase64;
+            localStorage.setItem('koperasi_auth', JSON.stringify(auth));
+          }
         }
         alert('Foto profil berhasil diperbarui!');
       } else {
@@ -1343,7 +1384,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
       let scheduledTarget = 0;
       allLoans.forEach(loan => {
         try {
-          const schedule = generateLoanSchedule(toDate(loan.tanggal_cair), Number(loan.tenor));
+          const schedule = generateLoanSchedule(toDate(loan.tanggal_cair || loan.tanggal_acc), Number(loan.tenor));
           if (schedule.some(date => {
             const sDate = new Date(date);
             sDate.setHours(0, 0, 0, 0);
@@ -1467,7 +1508,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
               {[
                 { label: 'Total Modal', val: stats.totalModal, color: 'cyan', icon: ICONS.Wallet },
                 { label: 'Saldo Kas', val: saldoKas, color: 'amber', icon: <Banknote size={14} />, onClick: () => setShowSaldoExplanation(true) },
-                { label: 'Out Pinjaman', val: stats.totalPinjaman, color: 'magenta', icon: ICONS.Doc },
+                { label: 'Out Pinjaman', val: stats.totalPinjamanCair, color: 'magenta', icon: ICONS.Doc },
               ].map((s, i) => (
                 <div 
                   key={i} 
@@ -2136,12 +2177,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                       <div className="flex justify-between items-center gap-2">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className="relative">
-                            <div className={`w-9 h-9 rounded-lg overflow-hidden border border-white/10 flex items-center justify-center bg-white/5 transition-transform group-hover:scale-105`}>
-                              {item.nasabah.foto ? (
-                                <img src={item.nasabah.foto} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                <User size={18} className="text-slate-500" />
-                              )}
+                            <div className={`w-9 h-9 rounded-lg border flex items-center justify-center text-xs font-black transition-transform group-hover:scale-105 ${getInitialBg(item.nasabah.nama)}`}>
+                              {item.nasabah.nama ? item.nasabah.nama.charAt(0).toUpperCase() : 'N'}
                             </div>
                             <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[#0f172a] ${
                               item.priority === 1 ? 'bg-rose-500' : 
@@ -2568,12 +2605,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                           .map(nasabah => (
                             <div key={nasabah.id_nasabah} className="flex items-center justify-between p-2.5 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-all group">
                               <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-slate-500 group-hover:text-emerald-400 transition-colors overflow-hidden">
-                                  {nasabah.foto && nasabah.foto.length > 10 ? (
-                                    <img src={nasabah.foto} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                                  ) : (
-                                    <User size={14} />
-                                  )}
+                                <div className={`w-8 h-8 rounded-lg border flex items-center justify-center text-[10px] font-black ${getInitialBg(nasabah.nama)}`}>
+                                  {nasabah.nama ? nasabah.nama.charAt(0).toUpperCase() : 'N'}
                                 </div>
                                 <div>
                                   <p className="text-[10px] font-black text-white leading-tight">{nasabah.nama}</p>
@@ -3544,7 +3577,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                         keterangan_admin: '',
                         status_penyelesaian: 'Belum Selesai',
                         bukti_foto: '',
-                        tanggal: new Date().toISOString().split('T')[0]
+                        tanggal: getLocalDateString(new Date())
                       });
                       setIsAddingValidation(true);
                     }}
@@ -3783,8 +3816,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout }) => {
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden border border-white/10">
-                              {p.foto ? <img src={p.foto} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <User size={16} className="m-auto mt-2 text-slate-500" />}
+                            <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-[10px] font-black ${getInitialBg(p.nama)}`}>
+                              {p.nama ? p.nama.charAt(0).toUpperCase() : 'P'}
                             </div>
                             <div className="text-left">
                               <p className="text-[10px] font-black text-white">{p.nama}</p>
