@@ -10,6 +10,18 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
+const getSecurePhotoUrl = (url: string | null | undefined): string => {
+  if (!url) return "https://picsum.photos/200";
+  if (url.startsWith('data:image')) return url;
+  if (url.includes('action=GET_PHOTO')) {
+    const queryIdx = url.indexOf('?');
+    if (queryIdx >= 0) {
+      return `/api/photo${url.substring(queryIdx)}`;
+    }
+  }
+  return url;
+};
+
 const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -66,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({ user, onLogout }) => {
       <div className="pt-6 border-t border-white/5 space-y-4">
         <div className="flex items-center gap-3 px-2">
           <img 
-            src={user.foto || "https://picsum.photos/200"} 
+            src={getSecurePhotoUrl(user.foto)} 
             className="w-10 h-10 rounded-xl border border-white/10 object-cover" 
             alt="profile" 
           />
