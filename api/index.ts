@@ -63,7 +63,7 @@ app.use(cors());
 app.use(express.json({ limit: '50mb', type: ['application/json', 'text/plain'] }));
 
 // Health Check
-app.get(["/api/health", "/health"], (req, res) => {
+app.get(["/api/health", "/health", "*/health"], (req, res) => {
   res.json({ 
     status: "ok", 
     timestamp: new Date().toISOString(), 
@@ -73,7 +73,7 @@ app.get(["/api/health", "/health"], (req, res) => {
 });
 
 // GET Image Proxy under secure HTTPS
-app.get(["/api/photo", "/photo"], async (req, res) => {
+app.get(["/api/photo", "/photo", "*/photo"], async (req, res) => {
   const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://backend.tokata.site/v1/admin";
   if (!remoteUrl || !remoteUrl.startsWith('http')) {
     return res.status(404).send("No remote api configured");
@@ -116,7 +116,7 @@ app.get(["/api/photo", "/photo"], async (req, res) => {
 });
 
 // API Routes
-app.post(["/api", "/"], async (req, res) => {
+app.post(["/api", "/api/*", "/", "*"], async (req, res) => {
   console.log(`[Vercel Serverless] Received request: ${req.body?.action}`);
   
   const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://backend.tokata.site/v1/admin";
