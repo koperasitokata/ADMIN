@@ -7,31 +7,61 @@ import AdminDashboard from './pages/AdminDashboard';
 import MobileNav from './components/MobileNav';
 import Sidebar from './components/Sidebar';
 
+const ensureSecurePhotoUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+  if (url.startsWith('data:image')) return url;
+  if (url.includes('action=GET_PHOTO')) {
+    const queryIdx = url.indexOf('?');
+    if (queryIdx >= 0) {
+      return `/api/photo${url.substring(queryIdx)}`;
+    }
+  }
+  return url;
+};
+
 const App: React.FC = () => {
   const [auth, setAuth] = useState<AuthState>(({ user: null, role: null }));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedAuth = sessionStorage.getItem('koperasi_auth');
+    const savedAuth = localStorage.getItem('koperasi_auth');
     if (savedAuth) {
       try {
-        setAuth(JSON.parse(savedAuth));
+        const parsed = JSON.parse(savedAuth);
+        if (parsed.user && parsed.user.foto) {
+          parsed.user.foto = ensureSecurePhotoUrl(parsed.user.foto);
+        }
+        setAuth(parsed);
       } catch (e) {
-        sessionStorage.removeItem('koperasi_auth');
+        localStorage.removeItem('koperasi_auth');
       }
     }
     setLoading(false);
   }, []);
 
   const handleLogin = (user: Nasabah | Petugas, role: UserRole) => {
+    if (user && user.foto) {
+      user.foto = ensureSecurePhotoUrl(user.foto) as any;
+    }
     const newAuth = { user, role };
     setAuth(newAuth);
-    sessionStorage.setItem('koperasi_auth', JSON.stringify(newAuth));
+    localStorage.setItem('koperasi_auth', JSON.stringify(newAuth));
   };
+
+  const handleUpdateUser = useCallback((updatedUser: Nasabah | Petugas) => {
+    if (updatedUser && updatedUser.foto) {
+      updatedUser.foto = ensureSecurePhotoUrl(updatedUser.foto) as any;
+    }
+    setAuth(prev => {
+      const newAuth = { ...prev, user: updatedUser };
+      localStorage.setItem('koperasi_auth', JSON.stringify(newAuth));
+      return newAuth;
+    });
+  }, []);
 
   const handleLogout = useCallback(() => {
     setAuth({ user: null, role: null });
-    sessionStorage.removeItem('koperasi_auth');
+    localStorage.removeItem('koperasi_auth');
   }, []);
 
   if (loading) return (
@@ -56,7 +86,7 @@ const App: React.FC = () => {
           <main className="flex-1 overflow-y-auto pb-32 md:pb-8 md:pt-4 transition-all duration-300 md:ml-64">
             <Routes>
               {auth.role === UserRole.ADMIN && (
-                <Route path="/" element={<AdminDashboard user={auth.user as Petugas} onLogout={handleLogout} />} />
+                <Route path="/" element={<AdminDashboard user={auth.user as Petugas} onLogout={handleLogout} onUpdateUser={handleUpdateUser} />} />
               )}
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
