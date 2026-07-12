@@ -1,114 +1,188 @@
 import express from "express";
 import cors from "cors";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 
-// Mock Data as fallback (since Vercel filesystem is read-only)
-const getInitialDB = () => ({
-  petugas: [
-    { id_petugas: "ADM01", nama: "Admin Tokata", no_hp: "08123456789", password: "admin", jabatan: "Admin", foto: "" }
-  ],
-  nasabah: [
-    { id_nasabah: "NSB001", nik: "1234567890123456", nama: "Budi Santoso", no_hp: "08111111111", pin: "1234", foto: "", latitude: -6.2, longitude: 106.8, update_lokasi: new Date().toISOString(), tanggal_daftar: new Date().toISOString() },
-    { id_nasabah: "NSB002", nik: "1234567890123457", nama: "Angga", no_hp: "08222222222", pin: "1234", foto: "", latitude: -6.21, longitude: 106.81, update_lokasi: new Date().toISOString(), tanggal_daftar: new Date().toISOString() }
-  ],
-  modal_awal: [],
-  pengeluaran: [],
-  pinjaman_aktif: [
-    { id_pinjaman: "CTR001", tanggal_acc: new Date().toISOString(), id_nasabah: "NSB002", nama: "Angga", pokok: 500000, bunga_persen: 20, total_hutang: 600000, tenor: 10, cicilan: 60000, sisa_hutang: 0, status: "Lunas", kolektor: "ADM01", tanggal_cair: new Date().toISOString(), bukti_cair: "" },
-    { id_pinjaman: "CTR002", tanggal_acc: new Date().toISOString(), id_nasabah: "NSB002", nama: "Angga", pokok: 1000000, bunga_persen: 20, total_hutang: 1200000, tenor: 10, cicilan: 120000, sisa_hutang: 1200000, status: "Aktif", kolektor: "ADM01", tanggal_cair: new Date().toISOString(), bukti_cair: "" }
-  ],
-  pengajuan_pinjaman: [
-    { id_pengajuan: "REQ001", tanggal: new Date().toISOString(), id_nasabah: "NSB001", nama: "Budi Santoso", jumlah: 1000000, tenor: 10, petugas: "Kolektor 1", status: "Pending" }
-  ],
-  simpanan: [],
-  angsuran: [],
-  pemasukan: []
-});
+// Load environment variables manually from .env or .env.example if not provided by host
+const envFiles = [".env", ".env.example"];
+for (const file of envFiles) {
+  const envPath = path.join(process.cwd(), file);
+  if (fs.existsSync(envPath)) {
+    try {
+      const content = fs.readFileSync(envPath, "utf-8");
+      content.split("\n").forEach((line) => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith("#")) {
+          const firstEqual = trimmed.indexOf("=");
+          if (firstEqual > 0) {
+            const key = trimmed.substring(0, firstEqual).trim();
+            const val = trimmed.substring(firstEqual + 1).trim().replace(/^['"]|['"]$/g, "");
+            if (key && !process.env[key]) {
+              process.env[key] = val;
+              console.log(`[Config] Loaded Env from ${file}: ${key} = ${val}`);
+            }
+          }
+        }
+      });
+    } catch (e) {
+      console.warn(`Warning loading ${file}:`, e);
+    }
+  }
+}
 
-// In-memory DB for Vercel (will reset on cold start)
-const memoryDB = getInitialDB();
+// Rekursif mengubah URL foto PHP (GET_PHOTO) menjadi url relatif /api/photo
+function rewritePhotoUrls(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string') {
+    if (obj.includes('action=GET_PHOTO')) {
+      const queryIdx = obj.indexOf('?');
+      if (queryIdx >= 0) {
+        return `/api/photo${obj.substring(queryIdx)}`;
+      }
+    }
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(rewritePhotoUrls);
+  }
+  if (typeof obj === 'object') {
+    const newObj: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        newObj[key] = rewritePhotoUrls(obj[key]);
+      }
+    }
+    return newObj;
+  }
+  return obj;
+}
 
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '50mb', type: ['application/json', 'text/plain'] }));
 
 // Health Check
-app.get("/api/health", (req, res) => {
+app.get(["/api/health", "/health"], (req, res) => {
   res.json({ 
     status: "ok", 
     timestamp: new Date().toISOString(), 
     env: "vercel-serverless",
-    proxy_active: !!process.env.VITE_API_URL 
+    proxy_active: !!(process.env.VITE_API_URL || process.env.API_URL)
   });
 });
 
+// GET Image Proxy under secure HTTPS
+app.get(["/api/photo", "/photo"], async (req, res) => {
+  const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://script.google.com/macros/s/AKfycbwRvcXUI1GVEo-Uc83Y_8eizho-LWPlsHXmcsA_tg2JAspUl9LBF5Sdak3MpiQduajt2g/exec";
+  if (!remoteUrl || !remoteUrl.startsWith('http')) {
+    return res.status(404).send("No remote api configured");
+  }
+
+  const queryParams = new URLSearchParams(req.query as any);
+  if (!queryParams.has('action')) {
+    queryParams.set('action', 'GET_PHOTO');
+  }
+
+  const targetUrl = `${remoteUrl}?${queryParams.toString()}`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const response = await fetch(targetUrl, {
+      method: 'GET',
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    let contentType = response.headers.get('content-type') || 'image/jpeg';
+    
+    // Normalize content-type if it is invalid/incomplete
+    if (contentType === 'image' || !contentType.includes('/')) {
+      contentType = 'image/jpeg';
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    return res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    console.error("[Proxy Photo GET Error]:", err.message);
+    res.setHeader('Content-Type', 'image/gif');
+    return res.send(Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64"));
+  }
+});
+
 // API Routes
-app.post("/api", async (req, res) => {
-  const remoteUrl = process.env.VITE_API_URL;
+app.post(["/api", "/"], async (req, res) => {
+  console.log(`[Vercel Serverless] Received request: ${req.body?.action}`);
   
-  // Proxy Mode to Google Apps Script (PREFERED)
+  const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://script.google.com/macros/s/AKfycbwRvcXUI1GVEo-Uc83Y_8eizho-LWPlsHXmcsA_tg2JAspUl9LBF5Sdak3MpiQduajt2g/exec";
+  
   if (remoteUrl && remoteUrl.startsWith('http')) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 Sec timeout limit
+
     try {
+      const bodyStr = JSON.stringify(req.body);
+      const payloadSize = bodyStr.length;
+      
+      console.log(`[Proxy] Forwarding ${req.body?.action} to DB php/script: ${remoteUrl}. Payload: ${(payloadSize / 1024).toFixed(2)} KB`);
+      
       const response = await fetch(remoteUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(req.body),
-        redirect: 'follow'
+        headers: { 
+          'Content-Type': 'text/plain;charset=utf-8',
+          'Accept': 'application/json'
+        },
+        body: bodyStr,
+        redirect: 'follow',
+        signal: controller.signal
       });
-      const data = await response.json();
-      return res.json(data);
-    } catch (error: any) {
-      return res.json({ success: false, message: "Proxy Error: " + error.message });
-    }
-  }
-
-  // Fallback to Memory DB (Data will NOT persist on Vercel)
-  try {
-    const { action, payload } = req.body || {};
-    if (!action) return res.json({ success: false, message: "No action" });
-
-    switch (action) {
-      case "LOGIN": {
-        const { role, identifier, password } = payload || {};
-        if (role === "ADMIN" || role === "KOLEKTOR") {
-          const user = memoryDB.petugas.find((u: any) => 
-            (u.id_petugas === identifier || u.no_hp === identifier) && u.password === password
-          );
-          if (user && user.jabatan.toUpperCase() === role) return res.json({ success: true, user });
-        } else {
-          const user = memoryDB.nasabah.find((u: any) => u.no_hp === identifier && u.pin === password);
-          if (user) return res.json({ success: true, user });
-        }
-        return res.json({ success: false, message: "Login gagal" });
-      }
-
-      case "GET_DASHBOARD_DATA": {
-        const { role } = payload || {};
-        if (role === "ADMIN") {
-          return res.json({
-            success: true,
-            data: {
-              stats: { modal: 0, pengeluaran: 0, pinjaman_aktif: 0, total_nasabah: memoryDB.nasabah.length },
-              pengajuan_pending: memoryDB.pengajuan_pinjaman.filter((p: any) => p.status === "Pending"),
-              jadwal_global: memoryDB.pinjaman_aktif.filter((p: any) => p.status === "Aktif"),
-              nasabah_list: memoryDB.nasabah,
-              petugas_list: memoryDB.petugas,
-              all_loans: memoryDB.pinjaman_aktif,
-              mutasi: [],
-              pemasukan_list: []
-            }
-          });
-        }
-        return res.json({ success: false });
-      }
       
-      // ... other cases simplified for brevity in mock mode ...
-      default:
-        return res.json({ success: false, message: "Action not supported in Vercel Mock Mode. Please connect VITE_API_URL (Google Sheets)." });
+      clearTimeout(timeoutId);
+      const text = await response.text();
+      
+      try {
+        const data = JSON.parse(text);
+        console.log(`[Proxy Success] ${req.body?.action} response received`);
+        return res.json(rewritePhotoUrls(data));
+      } catch (parseError) {
+        console.error(`[Proxy Error] Non-JSON response for ${req.body?.action}:`, text.substring(0, 1000));
+        
+        let errorMsg = "Umpan balik server database bukan format JSON yang valid.";
+        if (text.includes("522") || text.includes("Connection timed out")) {
+          errorMsg = "Cloudflare Error 522: Koneksi ke server VPS asal Anda Timeout. Pastikan server web PHP/MySQL Anda aktif.";
+        } else if (text.includes("<!DOCTYPE") || text.includes("<html")) {
+          errorMsg = "Server database Anda mengembalikan halaman HTML. Kemungkinan terjadi error internal PHP atau database mati.";
+        }
+
+        return res.json({ 
+          success: false, 
+          message: errorMsg,
+          details: text.substring(0, 100) 
+        });
+      }
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      console.error(`[Proxy Network Error] ${req.body?.action}:`, error.message);
+      if (error.name === 'AbortError') {
+        return res.json({ 
+          success: false, 
+          message: `Koneksi Timeout. Server database Anda di ${remoteUrl} tidak merespons. Pastikan server VPS Anda aktif.` 
+        });
+      }
+      return res.json({ success: false, message: "Gagal menghubungi server database Anda: " + error.message });
     }
-  } catch (err: any) {
-    return res.status(500).json({ success: false, message: err.message });
   }
+
+  // Fallback if no remote URL is configured
+  return res.json({ 
+    success: false, 
+    message: "Server URL belum dikonfigurasi. Harap tentukan VITE_API_URL di Environment Variables Vercel." 
+  });
 });
 
 export default app;
