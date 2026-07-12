@@ -62,62 +62,63 @@ function rewritePhotoUrls(obj: any): any {
 app.use(cors());
 app.use(express.json({ limit: '50mb', type: ['application/json', 'text/plain'] }));
 
-// Health Check
-app.get(["/api/health", "/health", "*/health"], (req, res) => {
-  res.json({ 
+// Catch-all GET
+app.get("*", async (req, res) => {
+  const urlPath = req.path || req.url || "";
+  
+  // 1. Check for Photo Request
+  if (urlPath.includes("photo")) {
+    const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://backend.tokata.site/v1/admin";
+    if (!remoteUrl || !remoteUrl.startsWith('http')) {
+      return res.status(404).send("No remote api configured");
+    }
+
+    const queryParams = new URLSearchParams(req.query as any);
+    if (!queryParams.has('action')) {
+      queryParams.set('action', 'GET_PHOTO');
+    }
+
+    const targetUrl = `${remoteUrl}?${queryParams.toString()}`;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(targetUrl, {
+        method: 'GET',
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      let contentType = response.headers.get('content-type') || 'image/jpeg';
+      if (contentType === 'image' || !contentType.includes('/')) {
+        contentType = 'image/jpeg';
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(Buffer.from(arrayBuffer));
+    } catch (err: any) {
+      console.error("[Proxy Photo GET Error]:", err.message);
+      res.setHeader('Content-Type', 'image/gif');
+      return res.send(Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64"));
+    }
+  }
+
+  // 2. Otherwise treatment as Health Check
+  return res.json({ 
     status: "ok", 
     timestamp: new Date().toISOString(), 
     env: "vercel-serverless",
+    path_received: urlPath,
     proxy_active: !!(process.env.VITE_API_URL || process.env.API_URL)
   });
 });
 
-// GET Image Proxy under secure HTTPS
-app.get(["/api/photo", "/photo", "*/photo"], async (req, res) => {
-  const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://backend.tokata.site/v1/admin";
-  if (!remoteUrl || !remoteUrl.startsWith('http')) {
-    return res.status(404).send("No remote api configured");
-  }
-
-  const queryParams = new URLSearchParams(req.query as any);
-  if (!queryParams.has('action')) {
-    queryParams.set('action', 'GET_PHOTO');
-  }
-
-  const targetUrl = `${remoteUrl}?${queryParams.toString()}`;
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    const response = await fetch(targetUrl, {
-      method: 'GET',
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-
-    let contentType = response.headers.get('content-type') || 'image/jpeg';
-    
-    // Normalize content-type if it is invalid/incomplete
-    if (contentType === 'image' || !contentType.includes('/')) {
-      contentType = 'image/jpeg';
-    }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    
-    res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-    return res.send(Buffer.from(arrayBuffer));
-  } catch (err: any) {
-    console.error("[Proxy Photo GET Error]:", err.message);
-    res.setHeader('Content-Type', 'image/gif');
-    return res.send(Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64"));
-  }
-});
-
-// API Routes
-app.post(["/api", "/api/*", "/", "*"], async (req, res) => {
-  console.log(`[Vercel Serverless] Received request: ${req.body?.action}`);
+// Catch-all POST
+app.post("*", async (req, res) => {
+  console.log(`[Vercel Serverless] Received POST on path: ${req.path || req.url}. Action: ${req.body?.action}`);
   
   const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://backend.tokata.site/v1/admin";
   
