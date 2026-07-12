@@ -74,7 +74,7 @@ app.get(["/api/health", "/health"], (req, res) => {
 
 // GET Image Proxy under secure HTTPS
 app.get(["/api/photo", "/photo"], async (req, res) => {
-  const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://script.google.com/macros/s/AKfycbwRvcXUI1GVEo-Uc83Y_8eizho-LWPlsHXmcsA_tg2JAspUl9LBF5Sdak3MpiQduajt2g/exec";
+  const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://backend.tokata.site/v1/admin";
   if (!remoteUrl || !remoteUrl.startsWith('http')) {
     return res.status(404).send("No remote api configured");
   }
@@ -88,7 +88,7 @@ app.get(["/api/photo", "/photo"], async (req, res) => {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const response = await fetch(targetUrl, {
       method: 'GET',
@@ -119,11 +119,11 @@ app.get(["/api/photo", "/photo"], async (req, res) => {
 app.post(["/api", "/"], async (req, res) => {
   console.log(`[Vercel Serverless] Received request: ${req.body?.action}`);
   
-  const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://script.google.com/macros/s/AKfycbwRvcXUI1GVEo-Uc83Y_8eizho-LWPlsHXmcsA_tg2JAspUl9LBF5Sdak3MpiQduajt2g/exec";
+  const remoteUrl = process.env.VITE_API_URL || process.env.API_URL || "https://backend.tokata.site/v1/admin";
   
   if (remoteUrl && remoteUrl.startsWith('http')) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 Sec timeout limit
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 Sec timeout limit
 
     try {
       const bodyStr = JSON.stringify(req.body);
