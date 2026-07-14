@@ -377,46 +377,59 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUpdat
       const totalPhysicalDeposit = dailyValidations.reduce((acc: number, cur: any) => acc + cleanNum(cur.total_setoran_fisik), 0);
       const selisihKas = totalPhysicalDeposit - totalIncome;
 
-      // Hitung Saldo Kas Kumulatif (Sistem) sampai dengan tanggal laporan
-      const mutationsOnOrBefore = mutasiList.filter(m => {
+      // Hitung Saldo Kas Kumulatif (Sistem) sampai dengan tanggal laporan dengan cara yang presisi:
+      // Memulai dari Saldo Kas Real-time saat ini (yang 100% akurat dari database stats),
+      // lalu mundur ke belakang dengan mengurangi transaksi masuk (pemasukan, angsuran, simpanan, modal)
+      // dan menambahkan transaksi keluar (pengeluaran, tarik simpanan, pencairan pinjaman) yang terjadi SETELAH tanggal laporan.
+      // Cara ini 100% akurat dan menghindari truncation/limit mutasi di mutasiList.
+      const mutationsAfterDate = mutasiList.filter(m => {
         const mDate = getLocalDateString(m.tanggal || m.tanggal_acc || m.tanggal_cair);
-        return mDate <= selectedDateStr;
+        return mDate !== "" && mDate > selectedDateStr;
       });
 
-      const historicalIncome = mutationsOnOrBefore
+      const incomeAfterDate = mutationsAfterDate
         .filter(m => m.tipe === 'Pemasukan')
         .reduce((acc, m) => acc + m.nominal, 0);
 
-      const historicalAngsuran = mutationsOnOrBefore
+      const angsuranAfterDate = mutationsAfterDate
         .filter(m => m.tipe === 'Angsuran')
         .reduce((acc, m) => acc + m.nominal, 0);
 
-      const historicalSimpananSetor = mutationsOnOrBefore
+      const simpananSetorAfterDate = mutationsAfterDate
         .filter(m => m.tipe === 'Simpanan')
         .reduce((acc, m) => acc + m.nominal, 0);
 
-      const historicalSimpananTarik = mutationsOnOrBefore
+      const modalSetorAfterDate = mutationsAfterDate
+        .filter(m => m.tipe === 'Setoran Modal')
+        .reduce((acc, m) => acc + m.nominal, 0);
+
+      const simpananTarikAfterDate = mutationsAfterDate
         .filter(m => m.tipe === 'Tarik Simpanan')
         .reduce((acc, m) => acc + m.nominal, 0);
 
-      const historicalPengeluaran = mutationsOnOrBefore
+      const pengeluaranAfterDate = mutationsAfterDate
         .filter(m => (m.tipe === 'Pengeluaran' || m.jenis === 'Uang Transport') && !m.ket.toLowerCase().includes('cair simpanan'))
         .reduce((acc, m) => acc + m.nominal, 0);
 
-      const historicalPinjamanCair = allLoans
-        .filter(loan => {
-          const loanDate = getLocalDateString(loan.tanggal_cair || loan.tanggal_acc);
-          return loanDate <= selectedDateStr;
-        })
-        .reduce((acc, loan) => acc + cleanNum(loan.pokok), 0);
+      const loansAfterDate = allLoans.filter(loan => {
+        const loanDate = getLocalDateString(loan.tanggal_cair || loan.tanggal_acc);
+        return loanDate !== "" && loanDate > selectedDateStr;
+      });
+      const loanCairAfterDate = loansAfterDate.reduce((acc, loan) => acc + cleanNum(loan.pokok), 0);
 
+      const totalInflowsAfterDate = incomeAfterDate + angsuranAfterDate + simpananSetorAfterDate + modalSetorAfterDate;
+      const totalOutflowsAfterDate = simpananTarikAfterDate + pengeluaranAfterDate + loanCairAfterDate;
+
+      // Ambil saldo kas real-time saat ini
+      const currentRealTimeCash = stats.totalModal + stats.totalPemasukan + stats.totalSimpanan + stats.totalAngsuran - stats.totalPinjamanCair - stats.totalPengeluaran;
+      
       // Saldo Kas Sistem pada akhir tanggal laporan
-      const systemCashAsOfDate = stats.totalModal + historicalIncome + (historicalSimpananSetor - historicalSimpananTarik) + historicalAngsuran - historicalPinjamanCair - historicalPengeluaran;
+      const systemCashAsOfDate = currentRealTimeCash - totalInflowsAfterDate + totalOutflowsAfterDate;
 
       // Hitung Kumulatif Selisih Kas untuk menyesuaikan Kas Fisik
       const validationsOnOrBefore = latestValidationList.filter((v: any) => {
         const vDate = getLocalDateString(v.tanggal);
-        return vDate <= selectedDateStr;
+        return vDate !== "" && vDate <= selectedDateStr;
       });
 
       const totalHistoricalSelisih = validationsOnOrBefore.reduce((acc: number, cur: any) => acc + cleanNum(cur.selisih), 0);
