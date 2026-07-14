@@ -15,7 +15,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 import { toPng } from 'html-to-image';
 import { AppActions } from '../utils/actions';
 import { generateLoanSchedule, toDate } from '../utils/loanLogic';
-import { compressImage, fileToBase64 } from '../utils/imageUtils';
+import { compressImage, fileToBase64, getSecureImageUrl } from '../utils/imageUtils';
 import { CARD_CONFIG } from '../cardConfig';
 
 import { useSearchParams } from 'react-router-dom';
@@ -168,14 +168,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUpdat
   
   useEffect(() => {
     if (user.foto) {
-      let secureUrl = user.foto;
-      if (secureUrl.includes('action=GET_PHOTO')) {
-        const queryIdx = secureUrl.indexOf('?');
-        if (queryIdx >= 0) {
-          secureUrl = `/api/photo${secureUrl.substring(queryIdx)}`;
-        }
-      }
-      setAdminPhoto(secureUrl);
+      setAdminPhoto(getSecureImageUrl(user.foto));
     } else {
       setAdminPhoto(null);
     }
@@ -2240,7 +2233,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUpdat
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-14 h-14 bg-white/5 rounded-2xl overflow-hidden border border-white/10 flex items-center justify-center">
                     {selectedNasabah.foto ? (
-                      <img src={selectedNasabah.foto} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <img src={getSecureImageUrl(selectedNasabah.foto)} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
                       <User size={28} className="text-slate-500" />
                     )}
@@ -3072,7 +3065,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUpdat
                     className="w-16 h-16 mx-auto rounded-xl overflow-hidden border border-white/10 bg-white/5 cursor-pointer hover:scale-105 transition-transform"
                   >
                     <img 
-                      src={selectedReceipt.fotoBayar || selectedReceipt.bukti_bayar} 
+                      src={getSecureImageUrl(selectedReceipt.fotoBayar || selectedReceipt.bukti_bayar)} 
                       className="w-full h-full object-cover" 
                       referrerPolicy="no-referrer" 
                     />
@@ -3103,7 +3096,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user, onLogout, onUpdat
       {fullPhotoUrl && (
         <div className="fixed inset-0 z-[110] flex flex-col items-center justify-center p-4 bg-black/95 animate-in zoom-in duration-300">
           <div className="w-full max-w-lg aspect-square rounded-3xl overflow-hidden border border-white/10 shadow-2xl mb-6">
-            <img src={fullPhotoUrl} className="w-full h-full object-contain bg-black" referrerPolicy="no-referrer" />
+            <img src={getSecureImageUrl(fullPhotoUrl)} className="w-full h-full object-contain bg-black" referrerPolicy="no-referrer" />
           </div>
           <button 
             onClick={() => setFullPhotoUrl(null)}
