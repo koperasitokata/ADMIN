@@ -53,3 +53,38 @@ export const fileToBase64 = (file: File): Promise<string> => {
     reader.onerror = (error) => reject(error);
   });
 };
+
+/**
+ * Memastikan URL gambar aman dari masalah Mixed Content (HTTP vs HTTPS)
+ * dan secara cerdas merutekan gambar dari PHP backend
+ */
+export const getSecureImageUrl = (url: string | null | undefined): string => {
+  if (!url) return "";
+  
+  // Jika ini adalah Base64 data URI rill, kembalikan langsung
+  if (url.startsWith("data:image")) {
+    return url;
+  }
+  
+  let secureUrl = url;
+  
+  // Atasi HTTP ke HTTPS untuk domain backend tokata.site
+  if (secureUrl.startsWith("http://backend.tokata.site")) {
+    secureUrl = secureUrl.replace("http://backend.tokata.site", "https://backend.tokata.site");
+  }
+  
+  // Jika mengandung parameter GET_PHOTO, coba jadikan relative path ke proxy lokal
+  if (secureUrl.includes("action=GET_PHOTO")) {
+    const queryIdx = secureUrl.indexOf("?");
+    if (queryIdx >= 0) {
+      return `/api/photo${secureUrl.substring(queryIdx)}`;
+    }
+  }
+  
+  // Jika URL berupa http:// lainnya dan web dimuat di https://, gunakan protocol-relative //
+  if (secureUrl.startsWith("http://") && window.location.protocol === "https:") {
+    secureUrl = secureUrl.replace("http://", "https://");
+  }
+  
+  return secureUrl;
+};
